@@ -21,9 +21,8 @@ def register_action_handlers(app, services):
     # Get agent instances
     task_agent = services.get("agents", {}).get("task")
     
-    # Conversation state storage (should be shared with message handlers)
-    # In a real app, this would be a database or shared cache
-    conversation_state = {}
+    # Import conversation state from message handlers
+    from handlers.message_handlers import conversation_state
     
     @app.action(re.compile("^time_estimate_"))
     def handle_time_estimate_action(ack, body, client):
@@ -112,3 +111,105 @@ def register_action_handlers(app, services):
                 )
             except:
                 pass
+    
+    @app.action(re.compile("^project_"))
+    def handle_project_action(ack, body, client):
+        """
+        Handle project detection button clicks.
+        
+        Args:
+            ack: Function to acknowledge the action
+            body: Action payload
+            client: Slack client
+        """
+        try:
+            ack()
+            
+            action_id = body["actions"][0]["action_id"]
+            user_id = body["user"]["id"]
+            channel_id = body["channel"]["id"]
+            message_ts = body["message"]["ts"]
+            
+            logger.info(f"Received project action: {action_id} from user {user_id}")
+            
+            # Get user context
+            context = conversation_state.get(user_id, {})
+            logger.info(f"Project action handler context for {user_id}: {context}")
+            
+            # Handle project breakdown
+            if action_id == "project_breakdown":
+                response = task_agent.process_message({"text": "yes", "user": user_id}, context)
+            elif action_id == "project_create_task":
+                response = task_agent.process_message({"text": "no", "user": user_id}, context)
+            else:
+                return
+            
+            # Update message based on response
+            if response:
+                client.chat_update(
+                    channel=channel_id,
+                    ts=message_ts,
+                    text=response.get("message", "Processing..."),
+                    blocks=[{
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": response.get("message", "Processing...")
+                        }
+                    }]
+                )
+                
+                # Save updated context
+                conversation_state[user_id] = context
+                
+        except Exception as e:
+            logger.error(f"Error handling project action: {e}", exc_info=True)
+    
+    @app.action(re.compile("^breakdown_"))
+    def handle_breakdown_action(ack, body, client):
+        """
+        Handle task breakdown button clicks.
+        
+        Args:
+            ack: Function to acknowledge the action
+            body: Action payload
+            client: Slack client
+        """
+        try:
+            ack()
+            
+            action_id = body["actions"][0]["action_id"]
+            value = body["actions"][0]["value"]
+            user_id = body["user"]["id"]
+            channel_id = body["channel"]["id"]
+            message_ts = body["message"]["ts"]
+            
+            logger.info(f"Received breakdown action: {action_id} from user {user_id}")
+            
+            # Get user context
+            context = conversation_state.get(user_id, {})
+            context["expecting_breakdown_response"] = True
+            
+            # Process the response
+            response = task_agent.process_message({"text": value, "user": user_id}, context)
+            
+            # Update message based on response
+            if response:
+                client.chat_update(
+                    channel=channel_id,
+                    ts=message_ts,
+                    text=response.get("message", "Processing..."),
+                    blocks=[{
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": response.get("message", "Processing...")
+                        }
+                    }]
+                )
+                
+                # Save updated context
+                conversation_state[user_id] = context
+                
+        except Exception as e:
+            logger.error(f"Error handling breakdown action: {e}", exc_info=True)

@@ -5,9 +5,66 @@ This module contains handlers for Slack messages.
 """
 
 import logging
-from typing import Dict, Any
+import re
+from typing import Dict, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
+
+# Module-level conversation state storage
+conversation_state = {}
+
+def _detect_new_intent(message: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+    """
+    Detect if a message indicates a new conversation intent.
+    
+    Args:
+        message: Slack message
+        
+    Returns:
+        Tuple of (has_new_intent: bool, intent_type: Optional[str])
+    """
+    text = message.get("text", "").strip().lower()
+    
+    # Task creation intents
+    task_patterns = [
+        r"^(create|add|make|set up|start)\s+.*task",  # Explicit task creation
+        r"^(remind me to|i need to|i want to|i should)",  # Implicit task creation
+        r"^[✓✔️]\s+.*",  # Checkmark prefix
+        r"^\d+[\.\)]\s+.*",  # Numbered list item
+        r"^[-\*]\s+.*"  # Bullet point
+    ]
+    
+    # Calendar intents
+    calendar_patterns = [
+        r"^(schedule|book|plan|set up)\s+.*meeting",
+        r"^what('s|\s+is)\s+my\s+schedule",
+        r"^show\s+my\s+(calendar|meetings)",
+        r"^when\s+is\s+.*meeting"
+    ]
+    
+    # Help/info intents
+    help_patterns = [
+        r"^help",
+        r"^what\s+can\s+you\s+do",
+        r"^how\s+do\s+i"
+    ]
+    
+    # Check task patterns
+    for pattern in task_patterns:
+        if re.match(pattern, text):
+            return True, "task_creation"
+    
+    # Check calendar patterns        
+    for pattern in calendar_patterns:
+        if re.match(pattern, text):
+            return True, "calendar"
+            
+    # Check help patterns
+    for pattern in help_patterns:
+        if re.match(pattern, text):
+            return True, "help"
+    
+    return False, None
 
 def register_message_handlers(app, services):
     """
@@ -22,8 +79,7 @@ def register_message_handlers(app, services):
     calendar_agent = services.get("agents", {}).get("calendar")
     communication_agent = services.get("agents", {}).get("communication")
     
-    # Conversation state storage
-    conversation_state = {}
+    # Use the module-level conversation state
     
     @app.message("")
     def handle_message(message, say, client):
@@ -38,13 +94,23 @@ def register_message_handlers(app, services):
         try:
             logger.info(f"Received message: {message}")
             
+            # Log channel type for debugging
+            channel_type = message.get("channel_type")
+            logger.info(f"Channel type: {channel_type}")
+            
             # Only respond to direct messages
-            if message.get("channel_type") != "im":
+            if channel_type != "im":
+                logger.info(f"Ignoring non-DM message in channel type: {channel_type}")
                 return
             
             user_id = message.get("user")
             text = message.get("text", "").strip()
             channel_id = message.get("channel")
+            
+            # Skip bot messages
+            if message.get("bot_id"):
+                logger.info("Skipping bot message")
+                return
             
             logger.info(f"Processing DM from {user_id}: {text}")
             
@@ -52,6 +118,16 @@ def register_message_handlers(app, services):
             if user_id not in conversation_state:
                 conversation_state[user_id] = {}
             context = conversation_state[user_id]
+            
+            # Detect new intent
+            has_new_intent, intent_type = _detect_new_intent(message)
+            
+            # Clear existing state if new intent detected
+            if has_new_intent:
+                logger.info(f"New intent detected: {intent_type}. Clearing existing state.")
+                context.clear()
+                # Optionally set new intent in context
+                context["current_intent"] = intent_type
             
             # Try each agent in priority order
             response = None
@@ -64,19 +140,25 @@ def register_message_handlers(app, services):
                     context["expecting_time_estimate"] = True
                     context["last_task_id"] = response.get("task_id")
                     context["last_task_content"] = response.get("task_content")
+                    context["current_intent"] = "task_creation"
                     conversation_state[user_id] = context
             
-            # Then try calendar agent if available
+            # Then try calendar agent if available and no task response
             if not response and calendar_agent and calendar_agent.can_handle(message):
                 response = calendar_agent.process_message(message, context)
+                if response:
+                    context["current_intent"] = "calendar"
             
             # Finally, use communication agent as fallback
             if not response and communication_agent:
                 response = communication_agent.process_message(message, context)
+                if response:
+                    context["current_intent"] = "communication"
             
             # If no agent could handle the message, provide a fallback response
             if not response:
                 say("I'm not sure how to help with that. Try asking for help to see what I can do!")
+                context.clear()  # Clear context on fallback
                 return
             
             # Handle the response based on its type
@@ -88,6 +170,9 @@ def register_message_handlers(app, services):
         except Exception as e:
             logger.error(f"Error handling message: {e}", exc_info=True)
             say("I encountered an error, but I'm still here to help! Let's try that again. 💪")
+            # Clear context on error
+            if user_id in conversation_state:
+                conversation_state[user_id].clear()
 
 def handle_agent_response(response, say, client, channel_id, user_id, context):
     """
@@ -158,6 +243,47 @@ def handle_agent_response(response, say, client, channel_id, user_id, context):
         context.pop("expecting_time_estimate", None)
         context.pop("last_task_id", None)
         context.pop("last_task_content", None)
+    
+    # Handle project detection
+    elif response_type == "project_detected":
+        # Update context from response
+        if response.get("context_update"):
+            context.update(response["context_update"])
+        
+        # Create interactive message with buttons
+        blocks = [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": message
+                }
+            },
+            {
+                "type": "actions",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Yes, break it down"},
+                        "value": "breakdown",
+                        "action_id": "project_breakdown",
+                        "style": "primary"
+                    },
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "No, create as task"},
+                        "value": "create_task",
+                        "action_id": "project_create_task"
+                    }
+                ]
+            }
+        ]
+        
+        client.chat_postMessage(
+            channel=channel_id,
+            text=message,
+            blocks=blocks
+        )
     
     # Handle time estimate applied
     elif response_type == "time_estimate_applied":
@@ -420,6 +546,46 @@ def handle_agent_response(response, say, client, channel_id, user_id, context):
             ]
         )
     
+    # Handle breakdown suggestion
+    elif response_type == "breakdown_suggestion":
+        # Update context from response
+        if response.get("context_update"):
+            context.update(response["context_update"])
+        
+        # Create interactive message with buttons
+        blocks = [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": message
+                }
+            },
+            {
+                "type": "actions",
+                "elements": []
+            }
+        ]
+        
+        # Add action buttons
+        for action in response.get("actions", []):
+            blocks[1]["elements"].append({
+                "type": "button",
+                "text": {"type": "plain_text", "text": action["label"]},
+                "value": action["value"],
+                "action_id": f"breakdown_{action['value']}",
+                "style": "primary" if action["value"] == "create_all" else None
+            })
+        
+        client.chat_postMessage(
+            channel=channel_id,
+            text=message,
+            blocks=blocks
+        )
+    
     # Handle all other response types with simple message
     else:
+        # Update context if provided
+        if response.get("context_update"):
+            context.update(response["context_update"])
         say(message)

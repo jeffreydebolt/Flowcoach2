@@ -6,9 +6,10 @@ This module defines the TaskAgent class that handles task management functionali
 
 import logging
 import re
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 
 from core.base_agent import BaseAgent
+from core.bmad_client import plan as bmad_plan
 
 class TaskAgent(BaseAgent):
     """
@@ -40,14 +41,48 @@ class TaskAgent(BaseAgent):
         # Task-related keywords for intent detection
         self.task_keywords = [
             "add", "create", "task", "todo", "to-do", "to do", 
-            "remind", "remember", "capture", "track", "schedule"
+            "remind", "remember", "capture", "track", "schedule",
+            "need to", "should", "must", "have to"
         ]
         
-        # Time estimate patterns
+        # List indicator patterns
+        self.list_indicators = [
+            r"create these tasks:",
+            r"here('s| is) (what|my list|the list)",
+            r"tasks?( for | to do)?:",
+            r"todo( list)?:",
+            r"to-?do( list)?:",
+            r"here('s| are) my tasks?:",
+        ]
+        
+        # Task line patterns
+        self.task_line_patterns = [
+            r"^\d+[\.\)]",  # Numbered lists (1., 1), etc.)
+            r"^[-\*•]",     # Bullet points
+            r"^✓",          # Checkmark
+            r"^[\[\(][ x\*][\]\)]",  # Checkbox patterns: [ ], [x], (*), etc.
+            r"^[A-Za-z]+\)",  # Letter lists (a), B., etc.)
+        ]
+        
+        # Time estimate patterns - enhanced to catch more natural language patterns
         self.time_estimate_patterns = {
-            "2min": [r"\b2\s*min", r"\btwo\s*min", r"\bquick\b", r"\bfast\b", r"\bshort\b"],
-            "10min": [r"\b10\s*min", r"\bten\s*min", r"\bmedium\b"],
-            "30+min": [r"\b30\+?\s*min", r"\bthirty\+?\s*min", r"\blong\b", r"\bbig\b"]
+            "2min": [
+                r"\b2\s*min(?:ute)?s?\b", r"\btwo\s*min(?:ute)?s?\b", 
+                r"\bquick\b", r"\bfast\b", r"\bshort\b", r"\b2m\b"
+            ],
+            "10min": [
+                r"\b10\s*min(?:ute)?s?\b", r"\bten\s*min(?:ute)?s?\b", 
+                r"\bmedium\b", r"\b10m\b", r"\b15\s*min(?:ute)?s?\b",
+                r"\bfifteen\s*min(?:ute)?s?\b"
+            ],
+            "30+min": [
+                r"\b30\s*min(?:ute)?s?\s*(?:\+|plus)?\b", 
+                r"\bthirty\s*min(?:ute)?s?\s*(?:\+|plus)?\b",
+                r"\b(?:30|45|60)\s*min(?:ute)?s?\b",
+                r"\b1\s*h(?:ou)?r?\b", r"\bone\s*h(?:ou)?r?\b",
+                r"\blong\b", r"\bbig\b", r"\b30m\+?\b",
+                r"\b(?:hour|hrs?)\b", r"\bextended\b"
+            ]
         }
     
     def process_message(self, message: Dict[str, Any], context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -66,31 +101,151 @@ class TaskAgent(BaseAgent):
         
         self.logger.info(f"Processing message: '{text}' from user: {user_id}")
         
-        # Check if we're in a task creation flow
-        if context.get("expecting_time_estimate") and context.get("last_task_id"):
-            self.logger.info("Handling time estimate for existing task")
+        # Check if we're in a specific flow
+        if context.get("expecting_project_response"):
+            return self._handle_project_response(text, context)
+        
+        if context.get("expecting_time_estimate"):
             return self._handle_time_estimate(text, context)
         
-        # Check if this is a task creation request
-        if self._is_task_creation_request(text):
-            self.logger.info("Detected task creation request")
-            # Extract the actual task content from the command
-            task_content = self._extract_task_content(text)
-            self.logger.info(f"Extracted task content: '{task_content}'")
-            return self._create_task(task_content, user_id)
+        if context.get("expecting_breakdown_response"):
+            return self._handle_breakdown_response(text, context)
         
-        # Check if this is a task breakdown request
-        if "break down" in text.lower() and "task" in text.lower():
-            self.logger.info("Detected task breakdown request")
+        # First check if this is a multi-task message BEFORE any formatting
+        tasks = self._extract_tasks_from_message(text)
+        self.logger.info(f"Extracted {len(tasks)} tasks from message")
+        if len(tasks) > 1:
+            return self._create_multiple_tasks(tasks, user_id)
+        
+        # Check for explicit task breakdown request
+        if ("break down" in text.lower() or "breakdown" in text.lower()) and "task" in text.lower():
             return self._break_down_task(text, user_id)
         
-        # Check if this is a task review request
-        if any(keyword in text.lower() for keyword in ["review", "show", "list"]) and any(keyword in text.lower() for keyword in ["task", "todo", "to-do", "to do"]):
-            self.logger.info("Detected task review request")
-            return self._review_tasks(user_id)
-        
-        self.logger.info("No task-related intent detected")
+        # If it's a single task, proceed with normal flow
+        if self._is_task_creation_request(text):
+            task_content = self._extract_task_content(text)
+            return self._create_task(task_content, user_id)
+            
         return None
+
+    def _extract_tasks_from_message(self, text: str) -> List[str]:
+        """
+        Extract tasks from a message, handling both explicit lists and implicit task sequences.
+        
+        Args:
+            text: The message text
+            
+        Returns:
+            List of task descriptions
+        """
+        tasks = []
+        
+        # First check for numbered lists in the format "1) task 2) task" on a single line
+        # Split by numbered items like "1)", "2)", etc.
+        numbered_pattern = r'\d+\)'
+        parts = re.split(numbered_pattern, text)
+        
+        # If we have multiple parts (header + tasks), extract them
+        if len(parts) > 2:  # At least header + 2 tasks
+            # Skip the first part (header) and take the rest
+            for part in parts[1:]:
+                cleaned = part.strip()
+                if cleaned:
+                    tasks.append(cleaned)
+            
+            if tasks:
+                return tasks
+        
+        # Try splitting by "then" or similar sequence indicators
+        if " then " in text.lower():
+            tasks = [t.strip() for t in text.split(" then ")]
+            return tasks
+        
+        # Try splitting by newlines for multi-line lists
+        lines = text.split('\n')
+        
+        for i, line in enumerate(lines):
+            # Clean up the line
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Skip header lines that introduce lists
+            if any(re.search(pattern, line.lower()) for pattern in self.list_indicators):
+                continue
+            
+            # Check if this line looks like a task (has a list marker)
+            if re.match(r'^\d+[\.\)]|^\s*[-\*•]|^\s*✓|^\s*[\[\(][ x\*][\]\)]|^[A-Za-z]+[\.\)]', line):
+                # Remove the list marker
+                cleaned_line = re.sub(r'^\d+\)|^\d+\.|^\s*[-\*•]|^\s*✓|^\s*[\[\(][ x\*][\]\)]|^[A-Za-z]+[\.\)]', '', line).strip()
+                
+                # Remove task creation prefixes
+                for prefix in ["create a task to", "add task to", "create task to", "add a task to"]:
+                    if cleaned_line.lower().startswith(prefix):
+                        cleaned_line = cleaned_line[len(prefix):].strip()
+                
+                if cleaned_line:
+                    tasks.append(cleaned_line)
+        
+        # If we still don't have multiple tasks, check for other separators
+        if len(tasks) <= 1:
+            # Split by other common separators
+            for separator in [". ", "; "]:
+                if separator in text:
+                    tasks = [t.strip() for t in text.split(separator) if t.strip()]
+                    break
+        
+        # Clean up tasks
+        cleaned_tasks = []
+        for task in tasks:
+            # Remove common prefixes
+            task = re.sub(r'^(create|add)( a)? task (to|for) ', '', task, flags=re.IGNORECASE)
+            if task:
+                cleaned_tasks.append(task)
+        
+        return cleaned_tasks
+
+    def _create_multiple_tasks(self, tasks: List[str], user_id: str) -> Dict[str, Any]:
+        """
+        Create multiple tasks in Todoist.
+        
+        Args:
+            tasks: List of task descriptions
+            user_id: The user ID
+            
+        Returns:
+            Response data with results
+        """
+        created_tasks = []
+        failed_tasks = []
+        
+        for task_text in tasks:
+            try:
+                result = self._create_task(task_text, user_id)
+                if result["response_type"] == "task_created":
+                    created_tasks.append(result["task_content"])
+                else:
+                    failed_tasks.append(task_text)
+            except Exception as e:
+                self.logger.error(f"Error creating task '{task_text}': {e}")
+                failed_tasks.append(task_text)
+        
+        # Prepare response message
+        message_parts = []
+        if created_tasks:
+            tasks_list = "\n".join(f"✓ {task}" for task in created_tasks)
+            message_parts.append(f"Created {len(created_tasks)} tasks:\n{tasks_list}")
+        
+        if failed_tasks:
+            failed_list = "\n".join(f"❌ {task}" for task in failed_tasks)
+            message_parts.append(f"\nFailed to create {len(failed_tasks)} tasks:\n{failed_list}")
+        
+        return {
+            "response_type": "multiple_tasks_created",
+            "created_tasks": created_tasks,
+            "failed_tasks": failed_tasks,
+            "message": "\n".join(message_parts)
+        }
     
     def get_capabilities(self) -> Dict[str, Any]:
         """
@@ -145,6 +300,10 @@ class TaskAgent(BaseAgent):
         if "break down" in text and "task" in text:
             return True
         
+        # Check if this looks like a task creation request (action verb + object)
+        if self._is_task_creation_request(text):
+            return True
+        
         return False
     
     def _is_task_creation_request(self, text: str) -> bool:
@@ -157,18 +316,66 @@ class TaskAgent(BaseAgent):
         Returns:
             True if this is a task creation request, False otherwise
         """
-        text_lower = text.lower()
+        text_lower = text.lower().strip()
+        
+        # Check for empty text
+        if not text_lower:
+            return False
+            
+        # Check if this is a question about adding tasks (not an actual task)
+        question_patterns = [
+            r"^(can|could|would|will) you",
+            r"^how (do|can) i",
+            r"^what (can|do)",
+            r"^help",
+            r"\?$"
+        ]
+        if any(re.search(pattern, text_lower) for pattern in question_patterns):
+            return False
+            
+        # Check for list indicators
+        if any(re.search(pattern, text_lower) for pattern in self.list_indicators):
+            return True
+        
+        # Check for task line patterns
+        if any(re.match(pattern, text_lower) for pattern in self.task_line_patterns):
+            return True
         
         # Check for explicit task creation keywords at the beginning
-        for keyword in ["add", "create", "new task", "remind me"]:
-            if text_lower.startswith(keyword):
-                return True
-        
-        # Check for task-like structure (verb + object)
-        # This is a simple heuristic and could be improved with NLP
-        words = text_lower.split()
-        if len(words) >= 2 and words[0].endswith(("e", "ing")):
+        if any(text_lower.startswith(keyword) for keyword in ["add", "create", "new task", "remind me"]):
             return True
+        
+        # Check for task-like phrases
+        task_phrases = [
+            r"i (need|want|have) to",
+            r"i should",
+            r"we (need|should|must)",
+            r"let'?s",
+            r"going to",
+            r"will do",
+            r"must do",
+            r"have to"
+        ]
+        if any(re.match(pattern, text_lower) for pattern in task_phrases):
+            return True
+        
+        # Check for task-like structure (verb + object) or time indicators
+        words = text_lower.split()
+        if len(words) >= 2:
+            # Check if first word is a common action verb
+            first_word = words[0]
+            action_verbs = [
+                "send", "email", "call", "write", "read", "buy", "make", "plan", "do", "get", "find",
+                "create", "build", "review", "update", "prepare", "gather", "collect", "finish",
+                "complete", "schedule", "book", "arrange", "setup", "configure", "install",
+                "fix", "repair", "clean", "organize", "sort", "file", "print", "scan"
+            ]
+            if first_word in action_verbs:
+                return True
+            
+            # Check if it contains time indicators (like "- 5 mins")
+            if re.search(r'[-–]\s*\d+\s*min', text_lower):
+                return True
         
         return False
     
@@ -192,52 +399,111 @@ class TaskAgent(BaseAgent):
         
         return text
     
-    def _create_task(self, text: str, user_id: str) -> Dict[str, Any]:
+    def _create_task(self, task_text: str, user_id: str) -> Dict[str, Any]:
         """
-        Create a new task in Todoist.
+        Create a task in Todoist.
         
         Args:
-            text: The task description
+            task_text: Task description
             user_id: The user ID
             
         Returns:
             Response data
         """
-        self.logger.info(f"Creating task: '{text}'")
+        self.logger.info(f"Creating task: '{task_text}' for user {user_id}")
         
-        # Format task according to GTD principles if OpenAI is available
-        formatted_task = text
-        if self.openai_service:
-            try:
-                formatted_task = self._format_task_with_gtd(text)
-                # Remove any quotes that OpenAI might have added
-                formatted_task = formatted_task.strip('"').strip("'")
-                self.logger.info(f"Formatted task: '{formatted_task}'")
-            except Exception as e:
-                self.logger.error(f"Error formatting task with GTD: {e}")
-        
-        # Create task in Todoist
         try:
-            task = self.todoist_service.add_task(formatted_task)
-            task_id = task.get("id")
+            # Check if BMAD planning is enabled
+            bmad_result = bmad_plan("capture", task_text, user_id)
+            if bmad_result and bmad_result.get("tasks"):
+                # Use BMAD's planned task
+                bmad_task = bmad_result["tasks"][0]
+                task_text = bmad_task.get("title") or task_text
+                
+                # Extract BMAD suggestions
+                bmad_labels = bmad_task.get("labels", [])
+                bmad_project = bmad_task.get("project", "Inbox")
+                bmad_estimate = bmad_task.get("estimate_minutes")
+                bmad_notes = bmad_task.get("notes", "")
+                
+                self.logger.info(f"BMAD planned task: {task_text} with labels {bmad_labels}")
             
-            # Always ask for time estimate
-            return {
-                "response_type": "task_created_need_estimate",
-                "task_id": task_id,
+            # Remove common task creation prefixes
+            task_text = re.sub(r'^(i want to |create a task to |create task to |add task to )', '', task_text, flags=re.IGNORECASE).strip()
+            
+            # Skip GTD formatting for now - it's causing issues
+            formatted_task = task_text
+            
+            # Extract time estimate if present and clean the task text
+            time_estimate, cleaned_task = self._extract_time_estimate(formatted_task)
+            
+            # Use the cleaned task text
+            formatted_task = cleaned_task
+            
+            # Add time estimate in square brackets if found
+            if time_estimate:
+                formatted_task = f"[{time_estimate}] {formatted_task}"
+            
+            # Keep the original task description as-is for now
+            
+            # Check if this might be a project, especially for 30+ min tasks
+            if time_estimate == "30+min":
+                # For testing, be more aggressive about project detection
+                project_keywords = ["create", "build", "develop", "design", "implement", "establish", "forecast", "model", "plan", "strategy"]
+                is_potential_project = any(keyword in cleaned_task.lower() for keyword in project_keywords)
+                
+                if is_potential_project:
+                    reason = f"This task involves creating something substantial ('{cleaned_task}') and is estimated to take 30+ minutes, which suggests it might have multiple steps."
+                    return {
+                        "response_type": "project_detected",
+                        "task_content": formatted_task,
+                        "reason": reason,
+                        "message": f"This looks like a project: '{cleaned_task}' (30+ min task). Would you like me to break this down into smaller tasks?",
+                        "actions": [
+                            {"label": "Yes, break it down", "value": "breakdown"},
+                            {"label": "No, create as task", "value": "create_task"}
+                        ],
+                        "context_update": {
+                            "pending_task": formatted_task,
+                            "expecting_project_response": True
+                        }
+                    }
+            
+            # Create task in Todoist
+            task_data = self.todoist_service.add_task(formatted_task)
+            
+            if not task_data:
+                return {
+                    "response_type": "error",
+                    "message": "Failed to create task in Todoist."
+                }
+            
+            # Build response message
+            message = f"Created task: {formatted_task}"
+            if bmad_result and bmad_result.get("tasks"):
+                message += " (via BMAD planner)"
+            
+            response = {
+                "response_type": "task_created",
+                "task_id": task_data.get("id"),
                 "task_content": formatted_task,
-                "message": f"Task created: {formatted_task}\nHow long do you think this will take?",
-                "actions": [
-                    {"label": "[2min]", "value": "2min"},
-                    {"label": "[10min]", "value": "10min"},
-                    {"label": "[30+min]", "value": "30+min"}
-                ]
+                "message": message
             }
+            
+            # If no time estimate was found, ask for one
+            if not time_estimate:
+                response.update({
+                    "response_type": "task_created_need_estimate",
+                    "message": f"Task created: {formatted_task}\nHow long will this task take?"
+                })
+            
+            return response
+            
         except Exception as e:
             self.logger.error(f"Error creating task: {e}")
             return {
                 "response_type": "error",
-                "message": "Sorry, I couldn't create the task. Please try again."
+                "message": f"Sorry, I couldn't create that task: {str(e)}"
             }
     
     def _format_task_with_gtd(self, task_text: str) -> str:
@@ -267,24 +533,55 @@ class TaskAgent(BaseAgent):
         response = self.openai_service.generate_text(prompt)
         return response.strip()
     
-    def _extract_time_estimate(self, text: str) -> Optional[str]:
+    def _extract_time_estimate(self, text: str) -> Tuple[Optional[str], str]:
         """
-        Extract time estimate from text.
+        Extract time estimate from text and return cleaned text.
         
         Args:
             text: The text to analyze
             
         Returns:
-            Time estimate label or None if not found
+            Tuple of (time_estimate, cleaned_text)
         """
+        original_text = text
         text_lower = text.lower()
         
+        # First check for explicit time patterns and remove them
+        explicit_patterns = [
+            (r'[-–]\s*(\d+\s*(?:min(?:ute)?s?|m)\s*(?:\+|plus)?)', None),
+            (r'[-–]\s*(\d+\s*h(?:ou)?rs?)', '30+min'),
+            (r'\((\d+\s*(?:min(?:ute)?s?|m)\s*(?:\+|plus)?)\)', None),
+            (r'\[(\d+\s*(?:min(?:ute)?s?|m)\s*(?:\+|plus)?)\]', None),
+        ]
+        
+        for pattern, default_estimate in explicit_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                time_str = match.group(1).lower()
+                # Remove the time estimate from the text
+                cleaned_text = text[:match.start()] + text[match.end():]
+                cleaned_text = cleaned_text.strip()
+                
+                # Extract number
+                num_match = re.search(r'\d+', time_str)
+                if num_match:
+                    minutes = int(num_match.group())
+                    if minutes <= 5:
+                        return "2min", cleaned_text
+                    elif minutes <= 15:
+                        return "10min", cleaned_text
+                    else:
+                        return "30+min", cleaned_text
+                if default_estimate:
+                    return default_estimate, cleaned_text
+        
+        # Fall back to keyword matching (don't remove keywords)
         for estimate, patterns in self.time_estimate_patterns.items():
             for pattern in patterns:
                 if re.search(pattern, text_lower):
-                    return estimate
+                    return estimate, original_text
         
-        return None
+        return None, original_text
     
     def _handle_time_estimate(self, text: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -297,6 +594,10 @@ class TaskAgent(BaseAgent):
         Returns:
             Response data
         """
+        # Check if we're handling multiple tasks
+        if context.get("multiple_tasks"):
+            return self._handle_multiple_task_estimates(text, context)
+            
         task_id = context.get("last_task_id")
         task_content = context.get("last_task_content", "your task")
         
@@ -339,6 +640,81 @@ class TaskAgent(BaseAgent):
                 "message": "Sorry, I couldn't apply the time estimate. The task was created, but not tagged."
             }
     
+    def _handle_multiple_task_estimates(self, text: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Handle time estimates for multiple tasks.
+        
+        Args:
+            text: The user's response
+            context: Conversation context
+            
+        Returns:
+            Response data
+        """
+        text_lower = text.lower()
+        tasks = context.get("created_tasks", [])
+        
+        # Handle bulk estimate
+        if text_lower.startswith("all"):
+            time_estimate = None
+            if "2min" in text_lower or "two min" in text_lower or "quick" in text_lower:
+                time_estimate = "2min"
+            elif "10min" in text_lower or "ten min" in text_lower or "medium" in text_lower:
+                time_estimate = "10min"
+            elif "30" in text_lower or "thirty" in text_lower or "long" in text_lower:
+                time_estimate = "30+min"
+                
+            if time_estimate:
+                updated_tasks = []
+                failed_tasks = []
+                
+                for task in tasks:
+                    try:
+                        self._apply_time_estimate(task["id"], time_estimate)
+                        updated_tasks.append(task["content"])
+                    except Exception as e:
+                        self.logger.error(f"Error applying time estimate to task {task['id']}: {e}")
+                        failed_tasks.append(task["content"])
+                
+                message_parts = [f"Applied {time_estimate} estimate to {len(updated_tasks)} tasks."]
+                if failed_tasks:
+                    message_parts.append(f"\nNote: Failed to update {len(failed_tasks)} tasks:")
+                    for task in failed_tasks:
+                        message_parts.append(f"• {task}")
+                
+                return {
+                    "response_type": "multiple_time_estimates_applied",
+                    "message": "\n".join(message_parts)
+                }
+        
+        # Handle individual estimates or invalid input
+        if text_lower == "individual" or not text_lower.startswith("all"):
+            next_task = next((task for task in tasks if task.get("needs_estimate")), None)
+            
+            if next_task:
+                return {
+                    "response_type": "need_individual_estimate",
+                    "task_id": next_task["id"],
+                    "task_content": next_task["content"],
+                    "message": f"How long will this task take: {next_task['content']}?",
+                    "actions": [
+                        {"label": "[2min]", "value": "2min"},
+                        {"label": "[10min]", "value": "10min"},
+                        {"label": "[30+min]", "value": "30+min"}
+                    ]
+                }
+            
+        return {
+            "response_type": "invalid_time_estimate",
+            "message": "Please choose to either apply the same estimate to all tasks or estimate them individually:",
+            "actions": [
+                {"label": "All [2min]", "value": "all_2min"},
+                {"label": "All [10min]", "value": "all_10min"},
+                {"label": "All [30+min]", "value": "all_30+min"},
+                {"label": "Estimate individually", "value": "individual"}
+            ]
+        }
+    
     def _apply_time_estimate(self, task_id: str, time_estimate: str) -> None:
         """
         Apply time estimate to a task by adding it to the task name.
@@ -380,33 +756,207 @@ class TaskAgent(BaseAgent):
         Returns:
             Response data
         """
-        # Extract task ID or description from text
-        # This is a placeholder implementation
-        task_id = None
-        task_description = None
+        # Extract task description from text
+        task_description = self._extract_task_for_breakdown(text)
         
         # If we have OpenAI service, use it to break down the task
         if self.openai_service:
-            subtasks = self._generate_subtasks(task_description or text)
-            
-            # Create subtasks in Todoist
-            created_tasks = []
-            for subtask in subtasks:
-                try:
-                    task = self.todoist_service.add_task(subtask)
-                    created_tasks.append(task)
-                except Exception as e:
-                    self.logger.error(f"Error creating subtask: {e}")
-            
-            return {
-                "response_type": "tasks_broken_down",
-                "subtasks": created_tasks,
-                "message": f"I've broken down the task into {len(created_tasks)} subtasks:"
-            }
+            try:
+                subtasks = self._generate_subtasks(task_description)
+                
+                if not subtasks:
+                    return {
+                        "response_type": "error",
+                        "message": "I couldn't generate any subtasks. Please try rephrasing the task."
+                    }
+                
+                # Format message with subtasks
+                message_parts = ["Here's how I would break down this task:"]
+                for i, subtask in enumerate(subtasks, 1):
+                    message_parts.append(f"{i}. {subtask}")
+                message_parts.append("\nWould you like me to create these subtasks?")
+                
+                # Store subtasks in context for later use
+                return {
+                    "response_type": "breakdown_suggestion",
+                    "message": "\n".join(message_parts),
+                    "subtasks": subtasks,
+                    "original_task": task_description,
+                    "actions": [
+                        {"label": "✓ Create all", "value": "create_all"},
+                        {"label": "✏️ Edit first", "value": "edit"},
+                        {"label": "❌ Cancel", "value": "cancel"}
+                    ],
+                    "context_update": {
+                        "pending_subtasks": subtasks,
+                        "original_task": task_description,
+                        "expecting_breakdown_response": True
+                    }
+                }
+                
+            except Exception as e:
+                self.logger.error(f"Error generating subtasks: {e}")
+                return {
+                    "response_type": "error",
+                    "message": "Sorry, I encountered an error while breaking down the task. Please try again."
+                }
         
         return {
             "response_type": "error",
             "message": "Sorry, I couldn't break down the task. This feature requires OpenAI integration."
+        }
+    
+    def _extract_task_for_breakdown(self, text: str) -> str:
+        """
+        Extract the task description for breakdown from the message.
+        
+        Args:
+            text: The message text
+            
+        Returns:
+            Task description
+        """
+        text_lower = text.lower()
+        
+        # Remove common prefixes
+        prefixes = [
+            "break down",
+            "breakdown",
+            "split",
+            "divide",
+            "separate"
+        ]
+        
+        for prefix in prefixes:
+            if text_lower.startswith(prefix):
+                # Remove the prefix and "task" or "into" if present
+                cleaned = text[len(prefix):].strip()
+                cleaned = re.sub(r'^(the\s+)?task\s+', '', cleaned, flags=re.IGNORECASE)
+                cleaned = re.sub(r'^into\s+', '', cleaned, flags=re.IGNORECASE)
+                return cleaned
+        
+        return text
+    
+    def _handle_breakdown_response(self, text: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Handle user response to task breakdown suggestion.
+        
+        Args:
+            text: The user's response
+            context: Conversation context
+            
+        Returns:
+            Response data
+        """
+        text_lower = text.lower().strip()
+        subtasks = context.get("pending_subtasks", [])
+        original_task = context.get("original_task", "")
+        
+        if not subtasks:
+            return {
+                "response_type": "error",
+                "message": "Sorry, I couldn't find the subtasks to create. Please try breaking down the task again."
+            }
+        
+        # Handle different response types  
+        if text_lower in ["create all", "yes", "create", "✓", "create_all", "create them", "do it"]:
+            created_tasks = []
+            failed_tasks = []
+            
+            # Create parent task if it doesn't exist
+            parent_task_id = None
+            try:
+                parent_response = self._create_task(original_task, context.get("user_id"))
+                if parent_response.get("response_type") != "error":
+                    parent_task_id = parent_response.get("task_id")
+            except Exception as e:
+                self.logger.error(f"Error creating parent task: {e}")
+            
+            # Create each subtask
+            for subtask in subtasks:
+                try:
+                    # Format subtask with parent task reference if available
+                    formatted_subtask = self._format_task_with_gtd(subtask)
+                    task_data = self.todoist_service.add_task(
+                        formatted_subtask,
+                        parent_id=parent_task_id
+                    )
+                    created_tasks.append({
+                        "id": task_data.get("id"),
+                        "content": formatted_subtask,
+                        "needs_estimate": True
+                    })
+                except Exception as e:
+                    self.logger.error(f"Error creating subtask '{subtask}': {e}")
+                    failed_tasks.append(subtask)
+            
+            # Clear the breakdown context
+            context.clear()
+            
+            if not created_tasks:
+                return {
+                    "response_type": "error",
+                    "message": "Sorry, I couldn't create any of the subtasks. Please try again."
+                }
+            
+            # Prepare success message
+            message_parts = []
+            if parent_task_id:
+                message_parts.append(f"Created main task: {original_task}")
+            message_parts.append(f"Created {len(created_tasks)} subtasks:")
+            for task in created_tasks:
+                message_parts.append(f"• {task['content']}")
+            
+            if failed_tasks:
+                message_parts.append(f"\nNote: Failed to create {len(failed_tasks)} subtasks:")
+                for task in failed_tasks:
+                    message_parts.append(f"• {task}")
+            
+            message_parts.append("\nWould you like to add time estimates to these tasks?")
+            
+            return {
+                "response_type": "multiple_tasks_created",
+                "message": "\n".join(message_parts),
+                "created_tasks": created_tasks,
+                "failed_tasks": failed_tasks,
+                "actions": [
+                    {"label": "All [2min]", "value": "all_2min"},
+                    {"label": "All [10min]", "value": "all_10min"},
+                    {"label": "All [30+min]", "value": "all_30+min"},
+                    {"label": "Estimate individually", "value": "individual"}
+                ]
+            }
+            
+        elif text_lower in ["edit", "edit first", "modify", "✏️", "edit_first"]:
+            # Prepare for editing mode
+            return {
+                "response_type": "edit_subtasks",
+                "message": "Here are the subtasks. Edit them as needed (one per line):",
+                "subtasks": subtasks,
+                "original_task": original_task,
+                "context_update": {
+                    "editing_subtasks": True,
+                    "original_task": original_task
+                }
+            }
+            
+        elif text_lower in ["cancel", "no", "❌", "cancel_breakdown"]:
+            # Clear the breakdown context
+            context.clear()
+            return {
+                "response_type": "breakdown_cancelled",
+                "message": "Task breakdown cancelled. Let me know if you need anything else!"
+            }
+        
+        # Handle invalid responses
+        return {
+            "response_type": "invalid_breakdown_response",
+            "message": "Please choose to either create the subtasks, edit them, or cancel:",
+            "actions": [
+                {"label": "✓ Create all", "value": "create_all"},
+                {"label": "✏️ Edit first", "value": "edit"},
+                {"label": "❌ Cancel", "value": "cancel"}
+            ]
         }
     
     def _generate_subtasks(self, task_description: str) -> List[str]:
@@ -424,13 +974,23 @@ class TaskAgent(BaseAgent):
         
         Complex task: "{task_description}"
         
-        For each subtask:
-        1. Start with an action verb
-        2. Make it specific and clear
-        3. Ensure it's achievable in one sitting
+        Requirements:
+        - Each subtask should be a clear next action
+        - Start with research/planning tasks if needed
+        - Include implementation tasks
+        - End with review/finalization tasks
+        - Each subtask should take 2-30 minutes
+        - Use specific action verbs
         
-        Return only the list of subtasks, one per line, without numbering or additional explanation.
-        """
+        Examples:
+        For "build cash flow forecast for client":
+        - Review client's historical financial data
+        - Create cash flow forecast template in Excel
+        - Input revenue projections for next 12 months
+        - Calculate expense projections based on historicals
+        - Review forecast with team and finalize
+        
+        Return only the list of subtasks, one per line, without numbering or bullet points."""
         
         response = self.openai_service.generate_text(prompt)
         subtasks = [line.strip() for line in response.strip().split("\n") if line.strip()]
@@ -470,3 +1030,200 @@ class TaskAgent(BaseAgent):
                 "response_type": "error",
                 "message": "Sorry, I couldn't retrieve your tasks. Please try again."
             }
+
+    def _is_likely_project(self, text: str) -> Tuple[bool, str]:
+        """
+        Determine if a task description sounds like a project.
+        
+        Args:
+            text: The task description
+            
+        Returns:
+            Tuple of (is_project: bool, reason: str)
+        """
+        prompt = f"""
+        Analyze this task description and determine if it sounds more like a project (multiple steps/phases) or a single task.
+        
+        Task: "{text}"
+        
+        Consider these specific factors:
+        1. Does it involve multiple distinct steps or phases? (e.g., research, design, build, test)
+        2. Would it typically take more than 2-3 hours to complete?
+        3. Does it require creating something substantial from scratch?
+        4. Common project indicators:
+           - "build/create/develop" + "system/app/website/forecast/model/plan"
+           - "redesign/refactor/migrate/implement" + major component
+           - "establish/set up" + process/workflow/system
+           - Words like "entire", "complete", "full", "comprehensive"
+        5. Examples that ARE projects:
+           - "build cash flow forecast for client"
+           - "create new website for company"
+           - "develop marketing strategy"
+           - "implement new CRM system"
+        6. Examples that are NOT projects:
+           - "review cash flow spreadsheet"
+           - "update website contact page"
+           - "send marketing email"
+           - "add user to CRM"
+           - "system", "platform", "website", "application"
+           - "strategy", "framework", "infrastructure"
+        
+        Respond in this exact format:
+        IS_PROJECT: true/false
+        REASON: One clear sentence explaining why, mentioning specific phases or components if relevant
+        """
+        
+        try:
+            response = self.openai_service.generate_text(prompt)
+            lines = response.strip().split('\n')
+            
+            is_project = False
+            reason = "This appears to be a single task."
+            
+            for line in lines:
+                if line.startswith('IS_PROJECT:'):
+                    is_project = 'true' in line.lower()
+                elif line.startswith('REASON:'):
+                    reason = line[7:].strip()
+            
+            # Enhance the reason if it's a website-related project
+            if is_project and any(word in text.lower() for word in ['website', 'web', 'site', 'redesign']):
+                reason += " It would typically involve requirements gathering, design mockups, development, testing, and deployment phases."
+            
+            return is_project, reason
+            
+        except Exception as e:
+            self.logger.error(f"Error determining if task is a project: {e}")
+            return False, "Could not analyze task complexity"
+
+    def _create_project(self, name: str, user_id: str) -> Dict[str, Any]:
+        """
+        Create a new project in Todoist.
+        
+        Args:
+            name: Project name
+            user_id: The user ID
+            
+        Returns:
+            Response data
+        """
+        try:
+            # Format project name
+            formatted_name = self._format_project_name(name)
+            
+            # Create project
+            project = self.todoist_service.create_project(formatted_name)
+            
+            if not project:
+                return {
+                    "response_type": "error",
+                    "message": "Sorry, I couldn't create the project. Please try again."
+                }
+            
+            return {
+                "response_type": "project_created",
+                "project_id": project["id"],
+                "project_name": project["name"],
+                "message": f"Created project: {project['name']}\n\nWould you like me to help break this down into tasks?",
+                "actions": [
+                    {"label": "✓ Break down now", "value": "break_down"},
+                    {"label": "⏳ Later", "value": "later"}
+                ]
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error creating project: {e}")
+            return {
+                "response_type": "error",
+                "message": "Sorry, I encountered an error while creating the project."
+            }
+
+    def _format_project_name(self, name: str) -> str:
+        """
+        Format a project name according to best practices.
+        
+        Args:
+            name: Original project name
+            
+        Returns:
+            Formatted project name
+        """
+        prompt = f"""
+        Format this project name according to best practices:
+        
+        Original name: "{name}"
+        
+        Guidelines:
+        1. Use title case
+        2. Remove unnecessary words like "Project" unless part of the actual name
+        3. Keep it concise but descriptive
+        4. Ensure it starts with a meaningful word (not "The", "A", etc.)
+        
+        Return only the formatted name without explanation.
+        """
+        
+        try:
+            formatted = self.openai_service.generate_text(prompt).strip()
+            return formatted or name  # Fallback to original if formatting fails
+        except Exception as e:
+            self.logger.error(f"Error formatting project name: {e}")
+            return name
+
+    def _handle_project_response(self, text: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Handle response to project detection (whether to break down or create as task).
+        
+        Args:
+            text: The user's response
+            context: Conversation context
+            
+        Returns:
+            Response data
+        """
+        text_lower = text.lower().strip()
+        pending_task = context.get("pending_task")
+        
+        # Debug logging
+        self.logger.info(f"_handle_project_response: context keys = {list(context.keys())}")
+        self.logger.info(f"_handle_project_response: pending_task = {pending_task}")
+        
+        if not pending_task:
+            return {
+                "response_type": "error",
+                "message": "Sorry, I couldn't find the task details. Please try creating your task again."
+            }
+        
+        # Clear the context
+        context["expecting_project_response"] = False
+        
+        if text_lower in ["yes", "break it down", "breakdown", "yes, break it down"]:
+            # Break down the task into subtasks
+            return self._break_down_task(pending_task, context.get("user_id"))
+            
+        elif text_lower in ["no", "create as task", "create_task", "no, create as task"]:
+            # Create as a single task
+            task_data = self.todoist_service.add_task(pending_task)
+            
+            if not task_data:
+                return {
+                    "response_type": "error",
+                    "message": "Failed to create task in Todoist."
+                }
+            
+            return {
+                "response_type": "task_created",
+                "task_id": task_data.get("id"),
+                "task_content": pending_task,
+                "message": f"Created task: {pending_task}"
+            }
+        
+        # Handle invalid responses
+        return {
+            "response_type": "invalid_project_response",
+            "message": "Please choose how you'd like to handle this:",
+            "actions": [
+                {"label": "📁 Create as project", "value": "create_project"},
+                {"label": "✓ Create as task", "value": "create_task"},
+                {"label": "🔄 Break down into tasks", "value": "break_down"}
+            ]
+        }

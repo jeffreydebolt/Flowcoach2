@@ -377,3 +377,40 @@ class TodoistService:
         self._projects = None
         self._labels = None
         self.logger.info("Todoist cache refreshed")
+
+    def create_project(self, name: str, **kwargs) -> Optional[Dict[str, Any]]:
+        """
+        Create a new project in Todoist.
+        
+        Args:
+            name: Project name
+            **kwargs: Additional project parameters (color, parent_id, etc.)
+            
+        Returns:
+            Created project object or None if creation failed
+        """
+        self.logger.info(f"Creating project: '{name}' with kwargs: {kwargs}")
+        
+        try:
+            # Create project
+            project = self.api.add_project(name=name, **kwargs)
+            self.logger.info(f"Project created successfully: {project.id}")
+            
+            # Clear projects cache
+            self._projects = None
+            
+            # Convert to dictionary for consistent return format
+            project_dict = {
+                'id': project.id,
+                'name': project.name,
+                'color': project.color,
+                'parent_id': project.parent_id if hasattr(project, 'parent_id') else None,
+                'order': project.order if hasattr(project, 'order') else None,
+                'url': project.url if hasattr(project, 'url') else None
+            }
+            self.logger.info(f"Returning project data: {project_dict}")
+            return project_dict
+            
+        except Exception as e:
+            self.logger.error(f"Error creating project: {str(e)}", exc_info=True)
+            return None

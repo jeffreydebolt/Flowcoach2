@@ -45,4 +45,4 @@ env/
 # Tokens and secrets
 tokens/
 *.pem
-*.key 
+*.key .env.v2backup

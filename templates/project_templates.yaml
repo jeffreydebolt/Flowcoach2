@@ -1,0 +1,253 @@
+# GTD Project Templates
+# Pre-defined project structures for common scenarios
+
+templates:
+  # Software Development Projects
+  web_application:
+    name: "Web Application Development"
+    description: "Complete web application from concept to deployment"
+    purpose: "Build and launch a functional web application"
+    vision: "Users can successfully use the application to solve their problem"
+    categories:
+      Planning & Research:
+        - "Define requirements and user stories"
+        - "Research technology stack and architecture"
+        - "Create wireframes and mockups"
+        - "Plan database schema"
+        - "Set up development environment"
+      Development & Creation:
+        - "Set up project repository and structure"
+        - "Create database and models"
+        - "Build core application features"
+        - "Implement user authentication"
+        - "Design and build user interface"
+        - "Add data validation and error handling"
+      Testing & Quality:
+        - "Write unit tests for core functionality"
+        - "Perform integration testing"
+        - "Conduct user acceptance testing"
+        - "Fix bugs and performance issues"
+        - "Code review and security audit"
+      Launch & Deployment:
+        - "Set up production environment"
+        - "Configure domain and SSL certificates"
+        - "Deploy application to production"
+        - "Set up monitoring and analytics"
+        - "Create user documentation"
+    contexts:
+      - "@computer"
+      - "@online"
+    time_estimate: "4-12 weeks"
+    
+  mobile_app:
+    name: "Mobile App Development"
+    description: "Native or cross-platform mobile application"
+    purpose: "Create a mobile app that users love and use regularly"
+    vision: "App is available in app stores with positive user reviews"
+    categories:
+      Planning & Research:
+        - "Define target audience and use cases"
+        - "Research platform requirements (iOS/Android)"
+        - "Create user journey maps"
+        - "Design app architecture"
+        - "Research app store guidelines"
+      Development & Creation:
+        - "Set up development environment and tools"
+        - "Create app project structure"
+        - "Build core app functionality"
+        - "Implement user interface and navigation"
+        - "Add offline functionality if needed"
+        - "Integrate with backend services"
+      Testing & Quality:
+        - "Test on multiple devices and screen sizes"
+        - "Perform usability testing with real users"
+        - "Test app performance and memory usage"
+        - "Fix bugs and optimize performance"
+      Launch & Deployment:
+        - "Prepare app store listings and screenshots"
+        - "Submit to app stores for review"
+        - "Set up app analytics and crash reporting"
+        - "Create marketing materials"
+        - "Plan app launch strategy"
+    contexts:
+      - "@computer"
+      - "@phone"
+    time_estimate: "6-16 weeks"
+
+  # Business Projects
+  product_launch:
+    name: "Product Launch"
+    description: "Launch a new product or service to market"
+    purpose: "Successfully introduce and market new product"
+    vision: "Product achieves target sales and market penetration"
+    categories:
+      Planning & Research:
+        - "Conduct market research and competitor analysis"
+        - "Define target customer segments"
+        - "Set pricing strategy and business model"
+        - "Create product positioning and messaging"
+        - "Develop go-to-market strategy"
+      Development & Creation:
+        - "Finalize product features and specifications"
+        - "Create marketing materials and website"
+        - "Develop sales collateral and presentations"
+        - "Set up distribution channels"
+        - "Train sales and support teams"
+      Communication & Coordination:
+        - "Coordinate with PR and media contacts"
+        - "Schedule product demos and presentations"
+        - "Plan launch events and webinars"
+        - "Communicate with key stakeholders"
+        - "Update partners and customers"
+      Launch & Deployment:
+        - "Execute marketing campaign launch"
+        - "Monitor initial sales and feedback"
+        - "Adjust pricing or messaging as needed"
+        - "Scale successful marketing channels"
+        - "Gather customer testimonials"
+    contexts:
+      - "@computer"
+      - "@phone"
+      - "@office"
+      - "@meetings"
+    time_estimate: "8-16 weeks"
+
+  # Personal Projects
+  home_organization:
+    name: "Home Organization Project"
+    description: "Declutter and organize living space"
+    purpose: "Create a peaceful, functional, organized home environment"
+    vision: "Everything has a place and can be easily found when needed"
+    categories:
+      Planning & Research:
+        - "Assess current state of each room"
+        - "Research organization systems and solutions"
+        - "Set organization goals for each space"
+        - "Plan timeline and priority areas"
+      Development & Creation:
+        - "Sort through belongings and declutter"
+        - "Donate or discard unwanted items"
+        - "Purchase organizing supplies and furniture"
+        - "Install storage solutions"
+        - "Create organization systems"
+      Communication & Coordination:
+        - "Involve family members in the process"
+        - "Schedule donation pickups"
+        - "Coordinate with professional organizers if needed"
+      Other:
+        - "Maintain new organization systems"
+        - "Do regular decluttering sessions"
+        - "Take before and after photos"
+    contexts:
+      - "@home"
+      - "@errands"
+      - "@computer"
+    time_estimate: "4-8 weeks"
+
+  career_change:
+    name: "Career Transition"
+    description: "Plan and execute a career change or job search"
+    purpose: "Successfully transition to new career or role"
+    vision: "Working in fulfilling role that aligns with goals and values"
+    categories:
+      Planning & Research:
+        - "Assess current skills and interests"
+        - "Research target industries and roles"
+        - "Identify skill gaps and learning needs"
+        - "Network with professionals in target field"
+        - "Research salary ranges and benefits"
+      Development & Creation:
+        - "Update resume and LinkedIn profile"
+        - "Create portfolio or work samples"
+        - "Develop new skills through courses or projects"
+        - "Practice interviewing skills"
+        - "Write cover letter templates"
+      Communication & Coordination:
+        - "Reach out to network contacts"
+        - "Apply to relevant job openings"
+        - "Follow up with hiring managers"
+        - "Schedule informational interviews"
+        - "Negotiate job offers"
+      Other:
+        - "Manage current job transition timing"
+        - "Plan financial bridge during transition"
+        - "Update professional references"
+    contexts:
+      - "@computer"
+      - "@phone"
+      - "@meetings"
+    time_estimate: "8-24 weeks"
+
+  # Health & Fitness
+  fitness_transformation:
+    name: "Health & Fitness Journey"
+    description: "Improve physical health and fitness levels"
+    purpose: "Achieve sustainable health and fitness improvements"
+    vision: "Feeling strong, energetic, and confident in body"
+    categories:
+      Planning & Research:
+        - "Assess current fitness level and health metrics"
+        - "Research workout programs and nutrition plans"
+        - "Consult with healthcare providers if needed"
+        - "Set realistic and measurable goals"
+        - "Plan workout schedule and meal prep routine"
+      Development & Creation:
+        - "Start workout routine consistently"
+        - "Meal prep and follow nutrition plan"
+        - "Track progress with measurements and photos"
+        - "Adjust program based on results"
+        - "Build healthy habit routines"
+      Communication & Coordination:
+        - "Find workout partner or accountability buddy"
+        - "Join fitness communities or classes"
+        - "Schedule regular check-ins with trainer"
+        - "Share progress with supportive friends"
+      Other:
+        - "Purchase necessary equipment or gym membership"
+        - "Prepare healthy meal ingredients"
+        - "Schedule regular progress assessments"
+    contexts:
+      - "@gym"
+      - "@home"
+      - "@errands"
+      - "@computer"
+    time_estimate: "12-24+ weeks"
+
+# Template matching keywords
+template_keywords:
+  web_application:
+    - "website"
+    - "web app"
+    - "online platform"
+    - "web development"
+    - "build a site"
+  mobile_app:
+    - "mobile app"
+    - "ios app"
+    - "android app"
+    - "smartphone app"
+    - "app development"
+  product_launch:
+    - "launch product"
+    - "new product"
+    - "product release"
+    - "go to market"
+    - "product marketing"
+  home_organization:
+    - "organize home"
+    - "declutter"
+    - "home organization"
+    - "organize house"
+    - "clean up"
+  career_change:
+    - "job search"
+    - "career change"
+    - "new job"
+    - "career transition"
+    - "find work"
+  fitness_transformation:
+    - "get fit"
+    - "lose weight"
+    - "build muscle"
+    - "fitness journey"
+    - "health goals"

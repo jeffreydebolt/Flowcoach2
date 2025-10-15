@@ -68,28 +68,45 @@ def register_action_handlers(app, services):
                 logger.error("Could not find task content in message")
                 return
             
-            # Update the task with the time estimate
+            # Update the task with the time estimate as a label
             try:
-                # Get current task content without any existing time estimate
-                content = re.sub(r'^\[(2min|10min|30\+min)\]\s*', '', task_content)
+                # Get or create the time estimate label
+                label_id = services["todoist"].get_or_create_label(time_estimate)
+                if not label_id:
+                    logger.error(f"Failed to create/get label for {time_estimate}")
+                    return
                 
-                # Add time estimate at the start
-                new_content = f"[{time_estimate}] {content}"
-                logger.info(f"Updating task content to: {new_content}")
+                # Get current task to preserve existing labels
+                current_task = services["todoist"].get_task(task_id)
+                if not current_task:
+                    logger.error(f"Could not get task {task_id}")
+                    return
                 
-                # Update the task
-                services["todoist"].update_task(task_id, content=new_content)
+                # Add new label to existing labels
+                existing_labels = current_task.get('labels', [])
+                
+                # Remove any existing time estimate labels first
+                time_estimate_labels = ["2min", "10min", "30+min"]
+                filtered_labels = [label for label in existing_labels if label not in time_estimate_labels]
+                
+                # Add the new time estimate label
+                updated_labels = filtered_labels + [time_estimate]
+                
+                logger.info(f"Updating task {task_id} with labels: {updated_labels}")
+                
+                # Update the task with the new labels
+                services["todoist"].update_task(task_id, labels=updated_labels)
                 
                 # Update the message to show success
                 client.chat_update(
                     channel=channel_id,
                     ts=message_ts,
-                    text=f"Added time estimate: {new_content}",
+                    text=f"✅ Added {time_estimate} label to task",
                     blocks=[{
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": f"Added time estimate: {new_content}"
+                            "text": f"✅ Added **{time_estimate}** label to task"
                         }
                     }]
                 )
@@ -213,3 +230,136 @@ def register_action_handlers(app, services):
                 
         except Exception as e:
             logger.error(f"Error handling breakdown action: {e}", exc_info=True)
+    
+    @app.action(re.compile("^calendar_"))
+    def handle_calendar_action(ack, body, client):
+        """
+        Handle calendar scheduling button clicks.
+        
+        Args:
+            ack: Function to acknowledge the action
+            body: Action payload
+            client: Slack client
+        """
+        try:
+            ack()
+            
+            action_id = body["actions"][0]["action_id"]
+            value = body["actions"][0]["value"]
+            user_id = body["user"]["id"]
+            channel_id = body["channel"]["id"]
+            message_ts = body["message"]["ts"]
+            
+            logger.info(f"Received calendar action: {action_id} from user {user_id}")
+            
+            # Get user context
+            context = conversation_state.get(user_id, {})
+            task_info = context.get("task_for_calendar", {})
+            
+            if not task_info:
+                logger.error("No task info found for calendar scheduling")
+                client.chat_postEphemeral(
+                    channel=channel_id,
+                    user=user_id,
+                    text="Sorry, I couldn't find the task information for scheduling."
+                )
+                return
+            
+            # Handle different calendar actions
+            if value == "schedule_now":
+                # Schedule the task immediately in the next available slot
+                calendar_service = services.get("calendar")
+                if not calendar_service:
+                    client.chat_update(
+                        channel=channel_id,
+                        ts=message_ts,
+                        text="📅 Calendar service not available. Task created successfully without scheduling.",
+                        blocks=[{
+                            "type": "section",
+                            "text": {
+                                "type": "mrkdwn",
+                                "text": "📅 Calendar service not available. Task created successfully without scheduling."
+                            }
+                        }]
+                    )
+                    return
+                
+                # Create calendar event
+                result = calendar_service.create_task_time_block(
+                    user_id=user_id,
+                    task_title=task_info["task_content"],
+                    duration_minutes=task_info["duration_minutes"],
+                    description=f"GTD Task: {task_info['task_content']}\nEstimate: {task_info['time_estimate']}"
+                )
+                
+                if result:
+                    client.chat_update(
+                        channel=channel_id,
+                        ts=message_ts,
+                        text=f"✅ Task scheduled! {task_info['task_content']} is now on your calendar.",
+                        blocks=[{
+                            "type": "section",
+                            "text": {
+                                "type": "mrkdwn",
+                                "text": f"✅ **Task scheduled!** {task_info['task_content']} is now on your calendar."
+                            }
+                        }]
+                    )
+                else:
+                    client.chat_update(
+                        channel=channel_id,
+                        ts=message_ts,
+                        text="📅 Couldn't find an available time slot. Task created successfully.",
+                        blocks=[{
+                            "type": "section",
+                            "text": {
+                                "type": "mrkdwn",
+                                "text": "📅 Couldn't find an available time slot. Task created successfully."
+                            }
+                        }]
+                    )
+                        
+            elif value == "schedule_later":
+                # Just acknowledge and suggest scheduling later
+                client.chat_update(
+                    channel=channel_id,
+                    ts=message_ts,
+                    text=f"✅ Task created: {task_info['task_content']} - Schedule it when you're ready!",
+                    blocks=[{
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": f"✅ Task created: {task_info['task_content']} - Schedule it when you're ready!"
+                        }
+                    }]
+                )
+                
+            elif value == "task_complete":
+                # Just show completion message
+                client.chat_update(
+                    channel=channel_id,
+                    ts=message_ts,
+                    text=f"✅ Task created: {task_info['task_content']}",
+                    blocks=[{
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": f"✅ Task created: {task_info['task_content']}"
+                        }
+                    }]
+                )
+            
+            # Clear the calendar task context
+            context.pop("task_for_calendar", None)
+            conversation_state[user_id] = context
+                
+        except Exception as e:
+            logger.error(f"Error handling calendar action: {e}", exc_info=True)
+            try:
+                client.chat_postEphemeral(
+                    channel=channel_id,
+                    user=user_id,
+                    text="Sorry, something went wrong while processing your calendar request."
+                )
+            except:
+                pass

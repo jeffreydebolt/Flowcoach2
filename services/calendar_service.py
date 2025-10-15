@@ -429,3 +429,284 @@ class CalendarService:
                 })
         
         return focus_blocks
+    
+    def update_event(
+        self,
+        event_id: str,
+        user_id: str,
+        summary: str = None,
+        start_time: datetime = None,
+        end_time: datetime = None,
+        description: str = None,
+        calendar_id: str = 'primary'
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Update an existing calendar event.
+        
+        Args:
+            event_id: ID of event to update
+            user_id: User ID (for future multi-user support)
+            summary: New event summary/title
+            start_time: New start time
+            end_time: New end time
+            description: New event description
+            calendar_id: Calendar ID
+            
+        Returns:
+            Updated event or None if update failed
+        """
+        try:
+            if not self._calendar_service:
+                self.logger.error("Calendar service not available")
+                return None
+            
+            # Get the existing event
+            try:
+                existing_event = self.calendar_service.events().get(
+                    calendarId=calendar_id,
+                    eventId=event_id
+                ).execute()
+            except Exception as e:
+                self.logger.error(f"Event not found: {e}")
+                return None
+            
+            # Update only provided fields
+            if summary is not None:
+                existing_event['summary'] = summary
+            if description is not None:
+                existing_event['description'] = description
+            if start_time is not None:
+                existing_event['start'] = {
+                    'dateTime': start_time.isoformat(),
+                    'timeZone': 'UTC'
+                }
+            if end_time is not None:
+                existing_event['end'] = {
+                    'dateTime': end_time.isoformat(),
+                    'timeZone': 'UTC'
+                }
+            
+            # Update the event
+            updated_event = self.calendar_service.events().update(
+                calendarId=calendar_id,
+                eventId=event_id,
+                body=existing_event
+            ).execute()
+            
+            self.logger.info(f"Event updated: {updated_event.get('htmlLink')}")
+            
+            # Process the updated event
+            if 'date' in updated_event['start']:
+                return self._process_all_day_event(updated_event)
+            else:
+                return self._process_timed_event(updated_event)
+            
+        except Exception as e:
+            self.logger.error(f"Error updating event: {e}")
+            return None
+    
+    def delete_event(
+        self,
+        event_id: str,
+        user_id: str,
+        calendar_id: str = 'primary'
+    ) -> bool:
+        """
+        Delete a calendar event.
+        
+        Args:
+            event_id: ID of event to delete
+            user_id: User ID (for future multi-user support)
+            calendar_id: Calendar ID
+            
+        Returns:
+            True if deleted successfully, False otherwise
+        """
+        try:
+            if not self._calendar_service:
+                self.logger.error("Calendar service not available")
+                return False
+            
+            self.calendar_service.events().delete(
+                calendarId=calendar_id,
+                eventId=event_id
+            ).execute()
+            
+            self.logger.info(f"Event deleted: {event_id}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error deleting event: {e}")
+            return False
+    
+    def create_task_time_block(
+        self,
+        user_id: str,
+        task_title: str,
+        duration_minutes: int,
+        preferred_time: datetime = None,
+        description: str = None,
+        context: str = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a time block for a specific task.
+        
+        Args:
+            user_id: User ID
+            task_title: Title of the task
+            duration_minutes: How long the task should take
+            preferred_time: Preferred start time (will find next available if None)
+            description: Task description
+            context: GTD context (@computer, @phone, etc.)
+            
+        Returns:
+            Created calendar event or None if creation failed
+        """
+        try:
+            # Find available time slot
+            if preferred_time:
+                start_time = preferred_time
+            else:
+                # Find next available focus block
+                focus_blocks = self.find_focus_blocks(user_id, min_block_minutes=duration_minutes)
+                if not focus_blocks:
+                    self.logger.warning("No available focus blocks found")
+                    return None
+                
+                start_time = focus_blocks[0]["start"]
+            
+            end_time = start_time + timedelta(minutes=duration_minutes)
+            
+            # Create event summary with context if provided
+            summary = f"🎯 {task_title}"
+            if context:
+                summary += f" {context}"
+            
+            # Create event description
+            event_description = description or ""
+            if context:
+                event_description += f"\n\nGTD Context: {context}"
+            event_description += f"\nTime Estimate: {duration_minutes} minutes"
+            event_description += "\n\nCreated by FlowCoach GTD Assistant"
+            
+            # Create the calendar event
+            return self.create_event(
+                user_id=user_id,
+                summary=summary,
+                start_time=start_time,
+                end_time=end_time,
+                description=event_description
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Error creating task time block: {e}")
+            return None
+    
+    def reschedule_event(
+        self,
+        event_id: str,
+        user_id: str,
+        new_start_time: datetime,
+        duration_minutes: int = None,
+        calendar_id: str = 'primary'
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Reschedule an event to a new time.
+        
+        Args:
+            event_id: ID of event to reschedule
+            user_id: User ID
+            new_start_time: New start time
+            duration_minutes: New duration (keeps original if None)
+            calendar_id: Calendar ID
+            
+        Returns:
+            Updated event or None if reschedule failed
+        """
+        try:
+            if not self._calendar_service:
+                self.logger.error("Calendar service not available")
+                return None
+            
+            # Get existing event to preserve duration if needed
+            existing_event = self.calendar_service.events().get(
+                calendarId=calendar_id,
+                eventId=event_id
+            ).execute()
+            
+            # Calculate new end time
+            if duration_minutes:
+                new_end_time = new_start_time + timedelta(minutes=duration_minutes)
+            else:
+                # Keep original duration
+                original_start = datetime.fromisoformat(existing_event['start']['dateTime'].replace('Z', '+00:00'))
+                original_end = datetime.fromisoformat(existing_event['end']['dateTime'].replace('Z', '+00:00'))
+                original_duration = original_end - original_start
+                new_end_time = new_start_time + original_duration
+            
+            # Update the event
+            return self.update_event(
+                event_id=event_id,
+                user_id=user_id,
+                start_time=new_start_time,
+                end_time=new_end_time,
+                calendar_id=calendar_id
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Error rescheduling event: {e}")
+            return None
+    
+    def find_next_available_slot(
+        self,
+        user_id: str,
+        duration_minutes: int,
+        after_time: datetime = None,
+        work_hours_only: bool = True
+    ) -> Optional[datetime]:
+        """
+        Find the next available time slot for a given duration.
+        
+        Args:
+            user_id: User ID
+            duration_minutes: Required duration in minutes
+            after_time: Start looking after this time (defaults to now)
+            work_hours_only: Only look during work hours
+            
+        Returns:
+            Start time of next available slot or None if none found
+        """
+        try:
+            if after_time is None:
+                after_time = datetime.now()
+            
+            # Look for slots in the next 7 days
+            for days_ahead in range(7):
+                search_date = (after_time + timedelta(days=days_ahead)).date()
+                
+                if work_hours_only:
+                    focus_blocks = self.find_focus_blocks(
+                        user_id=user_id,
+                        date=search_date,
+                        min_block_minutes=duration_minutes
+                    )
+                else:
+                    # Look at entire day (simplified - could be enhanced)
+                    focus_blocks = self.find_focus_blocks(
+                        user_id=user_id,
+                        date=search_date,
+                        work_start_hour=0,
+                        work_end_hour=23,
+                        min_block_minutes=duration_minutes
+                    )
+                
+                for block in focus_blocks:
+                    # Make sure the slot is after our after_time
+                    if block["start"] >= after_time:
+                        return block["start"]
+            
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Error finding next available slot: {e}")
+            return None

@@ -244,6 +244,53 @@ def handle_agent_response(response, say, client, channel_id, user_id, context):
         context.pop("last_task_id", None)
         context.pop("last_task_content", None)
     
+    # Handle task created with calendar option
+    elif response_type == "task_created_with_calendar_option":
+        # Update context from response
+        if response.get("context_update"):
+            context.update(response["context_update"])
+        
+        # Store task info for calendar scheduling
+        context.update({
+            "task_for_calendar": {
+                "task_id": response.get("task_id"),
+                "task_content": response.get("task_content"),
+                "time_estimate": response.get("time_estimate"),
+                "duration_minutes": response.get("duration_minutes")
+            }
+        })
+        
+        # Create interactive message with calendar scheduling buttons
+        blocks = [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": message
+                }
+            },
+            {
+                "type": "actions",
+                "elements": []
+            }
+        ]
+        
+        # Add action buttons
+        for action in response.get("actions", []):
+            blocks[1]["elements"].append({
+                "type": "button",
+                "text": {"type": "plain_text", "text": action["label"]},
+                "value": action["value"],
+                "action_id": f"calendar_{action['value']}",
+                "style": "primary" if action["value"] == "schedule_now" else None
+            })
+        
+        client.chat_postMessage(
+            channel=channel_id,
+            text=message,
+            blocks=blocks
+        )
+    
     # Handle project detection
     elif response_type == "project_detected":
         # Update context from response

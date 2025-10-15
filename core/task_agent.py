@@ -437,12 +437,8 @@ class TaskAgent(BaseAgent):
             # Extract time estimate if present and clean the task text
             time_estimate, cleaned_task = self._extract_time_estimate(formatted_task)
             
-            # Use the cleaned task text
+            # Use the cleaned task text (NO longer adding time estimate to content)
             formatted_task = cleaned_task
-            
-            # Add time estimate in square brackets if found
-            if time_estimate:
-                formatted_task = f"[{time_estimate}] {formatted_task}"
             
             # Keep the original task description as-is for now
             
@@ -478,24 +474,49 @@ class TaskAgent(BaseAgent):
                     "message": "Failed to create task in Todoist."
                 }
             
+            # Add time estimate as label if we have one
+            if time_estimate:
+                try:
+                    # Get or create the time estimate label
+                    label_id = self.todoist_service.get_or_create_label(time_estimate)
+                    if label_id:
+                        # Update the task with the time estimate label
+                        self.todoist_service.update_task(task_data.get("id"), labels=[time_estimate])
+                        self.logger.info(f"Added {time_estimate} label to task {task_data.get('id')}")
+                except Exception as e:
+                    self.logger.error(f"Failed to add time estimate label: {e}")
+            
             # Build response message
             message = f"Created task: {formatted_task}"
             if bmad_result and bmad_result.get("tasks"):
                 message += " (via BMAD planner)"
             
-            response = {
-                "response_type": "task_created",
-                "task_id": task_data.get("id"),
-                "task_content": formatted_task,
-                "message": message
-            }
-            
-            # If no time estimate was found, ask for one
-            if not time_estimate:
-                response.update({
+            # If we have a time estimate, offer calendar scheduling
+            if time_estimate:
+                # Parse time estimate to minutes for calendar scheduling
+                duration_minutes = self._parse_time_estimate_to_minutes(time_estimate)
+                
+                response = {
+                    "response_type": "task_created_with_calendar_option",
+                    "task_id": task_data.get("id"),
+                    "task_content": formatted_task,
+                    "time_estimate": time_estimate,
+                    "duration_minutes": duration_minutes,
+                    "message": f"✅ Task created: {formatted_task} (labeled as {time_estimate})\n\nWould you like to schedule this on your calendar?",
+                    "actions": [
+                        {"label": "📅 Schedule Now", "value": "schedule_now"},
+                        {"label": "📅 Schedule Later", "value": "schedule_later"},
+                        {"label": "✅ Done", "value": "task_complete"}
+                    ]
+                }
+            else:
+                # If no time estimate was found, ask for one
+                response = {
                     "response_type": "task_created_need_estimate",
+                    "task_id": task_data.get("id"),
+                    "task_content": formatted_task,
                     "message": f"Task created: {formatted_task}\nHow long will this task take?"
-                })
+                }
             
             return response
             
@@ -582,6 +603,26 @@ class TaskAgent(BaseAgent):
                     return estimate, original_text
         
         return None, original_text
+    
+    def _parse_time_estimate_to_minutes(self, time_estimate: str) -> int:
+        """
+        Convert time estimate string to minutes.
+        
+        Args:
+            time_estimate: Time estimate string like "2min", "10min", "30+min"
+            
+        Returns:
+            Duration in minutes
+        """
+        if time_estimate == "2min":
+            return 2
+        elif time_estimate == "10min":
+            return 10
+        elif time_estimate == "30+min":
+            return 30
+        else:
+            # Default to 10 minutes for unknown estimates
+            return 10
     
     def _handle_time_estimate(self, text: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """

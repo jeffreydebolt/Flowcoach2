@@ -9,6 +9,7 @@ import logging
 from .todoist_service import TodoistService
 from .calendar_service import CalendarService
 from .openai_service import OpenAIService
+from .claude_service import ClaudeService
 from core.task_agent import TaskAgent
 from core.calendar_agent import CalendarAgent
 from core.communication_agent import CommunicationAgent
@@ -40,6 +41,14 @@ def initialize_services(config):
             logger.error(f"Error initializing OpenAI service: {e}")
     else:
         logger.warning("OpenAI API key not found. OpenAI service not initialized.")
+    
+    if config["claude"]["api_key"]:
+        try:
+            services["claude"] = ClaudeService(config["claude"])
+        except Exception as e:
+            logger.error(f"Error initializing Claude service: {e}")
+    else:
+        logger.warning("Claude API key not found. Claude service not initialized.")
 
     # Initialize Agents
     agents = {}
@@ -63,4 +72,4 @@ def initialize_services(config):
         
     return services
 
-__all__ = ["initialize_services", "TodoistService", "CalendarService", "OpenAIService"]
+__all__ = ["initialize_services", "TodoistService", "CalendarService", "OpenAIService", "ClaudeService"]

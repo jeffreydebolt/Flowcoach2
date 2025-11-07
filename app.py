@@ -2,6 +2,10 @@
 Main application entry point for FlowCoach Slack bot.
 """
 
+# Bootstrap environment variables in local mode
+from apps.server.core.env_bootstrap import bootstrap_env
+bootstrap_env()
+
 import os
 import logging
 import sys

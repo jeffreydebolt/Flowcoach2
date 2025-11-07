@@ -1,0 +1,118 @@
+{
+  "audit_header": {
+    "type": "section",
+    "text": {
+      "type": "mrkdwn",
+      "text": ":chart_with_upwards_trend: *FlowCoach Project Audit*\n\n{summary_text}"
+    }
+  },
+  "divider": {
+    "type": "divider"
+  },
+  "healthy_section": {
+    "type": "section",
+    "text": {
+      "type": "mrkdwn",
+      "text": ":green_heart: *Healthy Projects* ({healthy_count})\n{healthy_projects}"
+    }
+  },
+  "needs_definition_section": {
+    "type": "section",
+    "text": {
+      "type": "mrkdwn",
+      "text": ":yellow_heart: *Needs Definition* ({needs_definition_count})\n{needs_definition_projects}"
+    }
+  },
+  "stalled_section": {
+    "type": "section",
+    "text": {
+      "type": "mrkdwn",
+      "text": ":red_circle: *Stalled Projects* ({stalled_count})\n{stalled_projects}"
+    }
+  },
+  "action_buttons": {
+    "type": "actions",
+    "elements": [
+      {
+        "type": "button",
+        "text": {
+          "type": "plain_text",
+          "text": ":muscle: Recommit"
+        },
+        "style": "primary",
+        "action_id": "audit_recommit",
+        "value": "{project_id}"
+      },
+      {
+        "type": "button",
+        "text": {
+          "type": "plain_text",
+          "text": ":pause_button: Pause"
+        },
+        "action_id": "audit_pause",
+        "value": "{project_id}"
+      },
+      {
+        "type": "button",
+        "text": {
+          "type": "plain_text",
+          "text": ":writing_hand: Rewrite"
+        },
+        "style": "danger",
+        "action_id": "audit_rewrite",
+        "value": "{project_id}"
+      }
+    ]
+  },
+  "project_item": {
+    "type": "section",
+    "text": {
+      "type": "mrkdwn",
+      "text": "*{project_name}* • Score: {momentum_score} • {status_emoji} {days_idle_text}"
+    },
+    "accessory": {
+      "type": "overflow",
+      "options": [
+        {
+          "text": {
+            "type": "plain_text",
+            "text": ":muscle: Recommit"
+          },
+          "value": "recommit_{project_id}"
+        },
+        {
+          "text": {
+            "type": "plain_text",
+            "text": ":pause_button: Pause"
+          },
+          "value": "pause_{project_id}"
+        },
+        {
+          "text": {
+            "type": "plain_text",
+            "text": ":writing_hand: Rewrite"
+          },
+          "value": "rewrite_{project_id}"
+        }
+      ]
+    }
+  },
+  "summary_stats": {
+    "type": "context",
+    "elements": [
+      {
+        "type": "mrkdwn",
+        "text": ":bar_chart: {healthy_percentage}% healthy • {total_projects} total projects • Last updated {timestamp}"
+      }
+    ]
+  },
+  "empty_category": {
+    "type": "context",
+    "elements": [
+      {
+        "type": "plain_text",
+        "text": "None at the moment :tada:"
+      }
+    ]
+  }
+}

@@ -34,9 +34,18 @@ class TaskAgent(BaseAgent):
         super().__init__(config, services)
         self.todoist_service = services.get("todoist")
         self.openai_service = services.get("openai")
+        self.claude_service = services.get("claude")
         
         if not self.todoist_service:
             self.logger.error("Todoist service not available. Task agent functionality will be limited.")
+        
+        # Log which AI service is available
+        if self.claude_service:
+            self.logger.info("Claude service available - will use Claude for AI features")
+        elif self.openai_service:
+            self.logger.info("OpenAI service available - will use OpenAI for AI features")
+        else:
+            self.logger.warning("No AI service available - GTD formatting and task breakdown will be limited")
         
         # Task-related keywords for intent detection
         self.task_keywords = [
@@ -527,9 +536,22 @@ class TaskAgent(BaseAgent):
                 "message": f"Sorry, I couldn't create that task: {str(e)}"
             }
     
+    def _get_ai_service(self):
+        """
+        Get the available AI service, preferring Claude over OpenAI.
+        
+        Returns:
+            AI service instance or None if neither is available
+        """
+        if self.claude_service:
+            return self.claude_service
+        elif self.openai_service:
+            return self.openai_service
+        return None
+    
     def _format_task_with_gtd(self, task_text: str) -> str:
         """
-        Format a task according to GTD principles using OpenAI.
+        Format a task according to GTD principles using Claude or OpenAI.
         
         Args:
             task_text: Original task text
@@ -537,6 +559,11 @@ class TaskAgent(BaseAgent):
         Returns:
             Formatted task text
         """
+        ai_service = self._get_ai_service()
+        if not ai_service:
+            # Fallback to original text if no AI service
+            return task_text
+        
         prompt = f"""
         Reformat this task description according to Getting Things Done (GTD) principles:
         
@@ -551,8 +578,15 @@ class TaskAgent(BaseAgent):
         Return only the reformatted task text without additional explanation.
         """
         
-        response = self.openai_service.generate_text(prompt)
-        return response.strip()
+        try:
+            if self.claude_service:
+                response = self.claude_service.format_task_with_gtd(task_text)
+            else:
+                response = self.openai_service.generate_text(prompt)
+            return response.strip()
+        except Exception as e:
+            self.logger.error(f"Error formatting task with AI: {e}")
+            return task_text  # Fallback to original
     
     def _extract_time_estimate(self, text: str) -> Tuple[Optional[str], str]:
         """
@@ -800,8 +834,9 @@ class TaskAgent(BaseAgent):
         # Extract task description from text
         task_description = self._extract_task_for_breakdown(text)
         
-        # If we have OpenAI service, use it to break down the task
-        if self.openai_service:
+        # If we have an AI service, use it to break down the task
+        ai_service = self._get_ai_service()
+        if ai_service:
             try:
                 subtasks = self._generate_subtasks(task_description)
                 
@@ -844,7 +879,7 @@ class TaskAgent(BaseAgent):
         
         return {
             "response_type": "error",
-            "message": "Sorry, I couldn't break down the task. This feature requires OpenAI integration."
+            "message": "Sorry, I couldn't break down the task. This feature requires AI integration (Claude or OpenAI)."
         }
     
     def _extract_task_for_breakdown(self, text: str) -> str:
@@ -1002,7 +1037,7 @@ class TaskAgent(BaseAgent):
     
     def _generate_subtasks(self, task_description: str) -> List[str]:
         """
-        Generate subtasks for a complex task using OpenAI.
+        Generate subtasks for a complex task using Claude or OpenAI.
         
         Args:
             task_description: The task description
@@ -1010,32 +1045,46 @@ class TaskAgent(BaseAgent):
         Returns:
             List of subtask descriptions
         """
-        prompt = f"""
-        Break down this complex task into 3-5 smaller, actionable subtasks according to GTD principles:
+        ai_service = self._get_ai_service()
+        if not ai_service:
+            return []
         
-        Complex task: "{task_description}"
-        
-        Requirements:
-        - Each subtask should be a clear next action
-        - Start with research/planning tasks if needed
-        - Include implementation tasks
-        - End with review/finalization tasks
-        - Each subtask should take 2-30 minutes
-        - Use specific action verbs
-        
-        Examples:
-        For "build cash flow forecast for client":
-        - Review client's historical financial data
-        - Create cash flow forecast template in Excel
-        - Input revenue projections for next 12 months
-        - Calculate expense projections based on historicals
-        - Review forecast with team and finalize
-        
-        Return only the list of subtasks, one per line, without numbering or bullet points."""
-        
-        response = self.openai_service.generate_text(prompt)
-        subtasks = [line.strip() for line in response.strip().split("\n") if line.strip()]
-        return subtasks
+        try:
+            if self.claude_service:
+                # Use Claude's built-in method
+                subtasks = self.claude_service.generate_subtasks(task_description)
+            else:
+                # Use OpenAI with prompt
+                prompt = f"""
+                Break down this complex task into 3-5 smaller, actionable subtasks according to GTD principles:
+                
+                Complex task: "{task_description}"
+                
+                Requirements:
+                - Each subtask should be a clear next action
+                - Start with research/planning tasks if needed
+                - Include implementation tasks
+                - End with review/finalization tasks
+                - Each subtask should take 2-30 minutes
+                - Use specific action verbs
+                
+                Examples:
+                For "build cash flow forecast for client":
+                - Review client's historical financial data
+                - Create cash flow forecast template in Excel
+                - Input revenue projections for next 12 months
+                - Calculate expense projections based on historicals
+                - Review forecast with team and finalize
+                
+                Return only the list of subtasks, one per line, without numbering or bullet points."""
+                
+                response = self.openai_service.generate_text(prompt)
+                subtasks = [line.strip() for line in response.strip().split("\n") if line.strip()]
+            
+            return subtasks
+        except Exception as e:
+            self.logger.error(f"Error generating subtasks: {e}")
+            return []
     
     def _review_tasks(self, user_id: str) -> Dict[str, Any]:
         """
@@ -1114,8 +1163,16 @@ class TaskAgent(BaseAgent):
         REASON: One clear sentence explaining why, mentioning specific phases or components if relevant
         """
         
+        ai_service = self._get_ai_service()
+        if not ai_service:
+            return False, "AI service not available for project detection"
+        
         try:
-            response = self.openai_service.generate_text(prompt)
+            if self.claude_service:
+                response = self.claude_service.generate_text(prompt, max_tokens=200)
+            else:
+                response = self.openai_service.generate_text(prompt)
+            
             lines = response.strip().split('\n')
             
             is_project = False
@@ -1203,8 +1260,16 @@ class TaskAgent(BaseAgent):
         Return only the formatted name without explanation.
         """
         
+        ai_service = self._get_ai_service()
+        if not ai_service:
+            return name  # Fallback to original if no AI service
+        
         try:
-            formatted = self.openai_service.generate_text(prompt).strip()
+            if self.claude_service:
+                # Use Claude's generate_text with a simple prompt
+                formatted = self.claude_service.generate_text(prompt, max_tokens=50).strip()
+            else:
+                formatted = self.openai_service.generate_text(prompt).strip()
             return formatted or name  # Fallback to original if formatting fails
         except Exception as e:
             self.logger.error(f"Error formatting project name: {e}")

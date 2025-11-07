@@ -1,0 +1,128 @@
+{
+  "blocks": [
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "{intro}"
+      }
+    },
+    {
+      "type": "divider"
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*1.* {item1}"
+      },
+      "accessory": {
+        "type": "overflow",
+        "action_id": "task_1_actions",
+        "options": [
+          {
+            "text": {
+              "type": "plain_text",
+              "text": "✅ Done"
+            },
+            "value": "done_1"
+          },
+          {
+            "text": {
+              "type": "plain_text",
+              "text": "📅 Move to Today"
+            },
+            "value": "today_1"
+          },
+          {
+            "text": {
+              "type": "plain_text",
+              "text": "😴 Snooze"
+            },
+            "value": "snooze_1"
+          }
+        ]
+      }
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*2.* {item2}"
+      },
+      "accessory": {
+        "type": "overflow",
+        "action_id": "task_2_actions",
+        "options": [
+          {
+            "text": {
+              "type": "plain_text",
+              "text": "✅ Done"
+            },
+            "value": "done_2"
+          },
+          {
+            "text": {
+              "type": "plain_text",
+              "text": "📅 Move to Today"
+            },
+            "value": "today_2"
+          },
+          {
+            "text": {
+              "type": "plain_text",
+              "text": "😴 Snooze"
+            },
+            "value": "snooze_2"
+          }
+        ]
+      }
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*3.* {item3}"
+      },
+      "accessory": {
+        "type": "overflow",
+        "action_id": "task_3_actions",
+        "options": [
+          {
+            "text": {
+              "type": "plain_text",
+              "text": "✅ Done"
+            },
+            "value": "done_3"
+          },
+          {
+            "text": {
+              "type": "plain_text",
+              "text": "📅 Move to Today"
+            },
+            "value": "today_3"
+          },
+          {
+            "text": {
+              "type": "plain_text",
+              "text": "😴 Snooze"
+            },
+            "value": "snooze_3"
+          }
+        ]
+      }
+    },
+    {
+      "type": "divider"
+    },
+    {
+      "type": "context",
+      "elements": [
+        {
+          "type": "mrkdwn",
+          "text": "{close}"
+        }
+      ]
+    }
+  ]
+}

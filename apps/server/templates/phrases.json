@@ -1,0 +1,43 @@
+{
+  "morning_brief": {
+    "intros": [
+      "Good morning! Let's make today count.",
+      "Rise and shine! Here's your focused three.",
+      "Morning! Ready to tackle these priorities?",
+      "Hello sunshine! Your top tasks await.",
+      "Good morning! Time to move the needle."
+    ],
+    "outros": [
+      "You've got this! 💪",
+      "Make it a great day!",
+      "Focus on progress, not perfection.",
+      "One task at a time. You can do this!",
+      "Remember: Done is better than perfect."
+    ]
+  },
+  "evening_wrap": {
+    "intros": [
+      "Evening check-in time!",
+      "Let's review your day.",
+      "Time to wrap up and reflect.",
+      "How did today go?",
+      "Evening! Let's see your progress."
+    ],
+    "outros": [
+      "Rest well, tomorrow is a new day!",
+      "Great effort today!",
+      "Progress is progress, no matter how small.",
+      "Tomorrow is another opportunity.",
+      "Sleep tight!"
+    ]
+  },
+  "weekly_outcomes": {
+    "prompts": [
+      "What 3 wins would make this week successful?",
+      "What are your 3 key outcomes for this week?",
+      "What 3 things would make this a great week?",
+      "What are your top 3 priorities for the week ahead?",
+      "What 3 achievements would make you proud this Friday?"
+    ]
+  }
+}

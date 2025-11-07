@@ -17,6 +17,7 @@ SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN")
 SLACK_APP_TOKEN = os.environ.get("SLACK_APP_TOKEN")
 TODOIST_API_TOKEN = os.environ.get("TODOIST_API_TOKEN")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY")
 
 # Application Settings
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
@@ -38,6 +39,10 @@ MIN_FOCUS_BLOCK_MINUTES = int(os.environ.get("MIN_FOCUS_BLOCK_MINUTES", "30"))
 # OpenAI Settings
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4")
 OPENAI_TEMPERATURE = float(os.environ.get("OPENAI_TEMPERATURE", "0.7"))
+
+# Claude Settings
+CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-3-5-sonnet-20241022")
+CLAUDE_TEMPERATURE = float(os.environ.get("CLAUDE_TEMPERATURE", "0.7"))
 
 # Agent Settings
 AGENTS = {
@@ -82,6 +87,11 @@ def get_config() -> Dict[str, Any]:
             "api_key": OPENAI_API_KEY,
             "model": OPENAI_MODEL,
             "temperature": OPENAI_TEMPERATURE
+        },
+        "claude": {
+            "api_key": CLAUDE_API_KEY,
+            "model": CLAUDE_MODEL,
+            "temperature": CLAUDE_TEMPERATURE
         },
         "app": {
             "log_level": LOG_LEVEL,

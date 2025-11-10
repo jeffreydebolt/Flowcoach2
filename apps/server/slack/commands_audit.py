@@ -33,8 +33,14 @@ class AuditCommandHandler:
             self.templates = json.load(f)
 
     def handle_audit_command(self, ack, command, client: WebClient):
-        """Handle /flow audit slash command."""
+        """Handle /flow audit and /audit slash commands."""
         ack()
+
+        # Handle both /flow audit and /audit commands
+        command_text = command.get('text', '').strip()
+        if command['command'] == '/flow' and command_text != 'audit':
+            # This is a /flow command but not audit subcommand
+            return
 
         # Check if audit feature is enabled
         if not is_feature_enabled(FeatureFlag.PROJECT_AUDIT):
@@ -388,8 +394,9 @@ def register_audit_commands(app: App):
     """Register audit-related Slack commands and actions."""
     handler = AuditCommandHandler()
 
-    # Slash command
+    # Slash commands - both /flow audit and /audit work
     app.command("/flow")(handler.handle_audit_command)
+    app.command("/audit")(handler.handle_audit_command)
 
     # Action handlers
     app.action("audit_recommit")(handler.handle_audit_action)

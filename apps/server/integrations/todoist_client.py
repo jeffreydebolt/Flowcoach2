@@ -36,6 +36,7 @@ class TodoistClient:
     - Task filtering and labeling
     - Comment-based metadata storage
     - Project note storage for preferences
+    - Human-friendly priority mapping (P1-P4 ↔ Todoist 4-1)
     - Retry with exponential backoff
     """
 
@@ -292,3 +293,45 @@ class TodoistClient:
         except Exception as e:
             logger.error(f"Failed to add comment to task {task_id}: {e}")
             return False
+
+    def set_priority_human(self, task_id: str, p_human: int) -> bool:
+        """
+        Set task priority using human-friendly numbering (P1-P4).
+
+        Args:
+            task_id: Task ID to update
+            p_human: Human priority (1=highest, 4=lowest)
+
+        Returns:
+            True if successful
+
+        Note:
+            Converts P1-P4 to Todoist priorities 4-1 (inverted scale)
+        """
+        # Clamp to valid range and invert for Todoist
+        p_human = max(1, min(4, p_human))
+        p_todoist = 5 - p_human
+
+        def _set_priority():
+            self.api.update_task(task_id=task_id, priority=p_todoist)
+            return True
+
+        try:
+            return self._retry_with_backoff(_set_priority)
+        except Exception as e:
+            logger.error(f"Failed to set priority for task {task_id}: {e}")
+            return False
+
+    def get_priority_human(self, p_todoist: int) -> int:
+        """
+        Convert Todoist priority to human-friendly numbering.
+
+        Args:
+            p_todoist: Todoist priority (1-4, where 4=highest)
+
+        Returns:
+            Human priority (1-4, where 1=highest)
+        """
+        # Todoist: 1=low, 2=normal, 3=high, 4=urgent
+        # Human: P1=urgent, P2=high, P3=normal, P4=low
+        return 5 - p_todoist

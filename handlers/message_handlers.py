@@ -8,6 +8,9 @@ import logging
 import re
 from typing import Dict, Any, Optional, Tuple
 
+from apps.server.nlp import parse_task_input
+from apps.server.slack.blocks import render_task_creation_message
+
 logger = logging.getLogger(__name__)
 
 # Module-level conversation state storage
@@ -157,10 +160,17 @@ def register_message_handlers(app, services):
                 # Optionally set new intent in context
                 context["current_intent"] = intent_type
 
-            # Try each agent in priority order
-            response = None
+            # Check for bulk priority review intent first
+            if _is_bulk_priority_intent(text):
+                response = _handle_bulk_priority_review(user_id, services)
+                if response:
+                    context["current_intent"] = "bulk_priorities"
 
-            # First try task agent if available
+            # Try each agent in priority order
+            if not response:
+                response = None
+
+                # First try task agent if available
             if task_agent and task_agent.can_handle(message):
                 response = task_agent.process_message(message, context)
                 # Update conversation state immediately if task was created
@@ -219,7 +229,30 @@ def handle_agent_response(response, say, client, channel_id, user_id, context):
     message = response.get("message", "")
 
     # Handle task creation responses
-    if response_type == "task_created_need_estimate":
+    if response_type == "task_created_conversational":
+        # New Phase 2.0 conversational task creation
+        task_id = response.get("task_id")
+        task_content = response.get("task_content")
+        time_label = response.get("time_label")  # May be None
+        user_priority = response.get("user_priority")  # May be None
+
+        # Determine if we need to show chips (when time or priority missing)
+        show_chips = time_label is None or user_priority is None
+
+        # Render task creation message with chips if needed
+        message_payload = render_task_creation_message(
+            task_content=task_content,
+            task_id=task_id,
+            current_time=time_label,
+            current_priority=user_priority,
+            show_chips=show_chips,
+        )
+
+        client.chat_postMessage(
+            channel=channel_id, text=f":white_check_mark: Added {task_content}", **message_payload
+        )
+
+    elif response_type == "task_created_need_estimate":
         # Update context for time estimate follow-up
         context["expecting_time_estimate"] = True
         context["last_task_id"] = response.get("task_id")
@@ -539,9 +572,107 @@ def handle_agent_response(response, say, client, channel_id, user_id, context):
 
         client.chat_postMessage(channel=channel_id, text=message, blocks=blocks)
 
+    # Handle bulk priorities
+    elif response_type == "bulk_priorities":
+        tasks = response.get("tasks", [])
+        page = response.get("page", 0)
+        total_pages = response.get("total_pages", 1)
+
+        from apps.server.slack.blocks import render_bulk_priority_list
+
+        message_payload = render_bulk_priority_list(tasks, page, total_pages)
+
+        client.chat_postMessage(channel=channel_id, text="🎯 Task Priorities", **message_payload)
+
     # Handle all other response types with simple message
     else:
         # Update context if provided
         if response.get("context_update"):
             context.update(response["context_update"])
         say(message)
+
+
+def _is_bulk_priority_intent(text: str) -> bool:
+    """Detect if message is requesting bulk priority review."""
+    text_lower = text.lower().strip()
+
+    bulk_patterns = [
+        r"show my open tasks to adjust priorities",
+        r"adjust priorities",
+        r"priority review",
+        r"bulk priorities",
+        r"review my priorities",
+        r"change task priorities",
+    ]
+
+    for pattern in bulk_patterns:
+        if re.search(pattern, text_lower):
+            return True
+
+    return False
+
+
+def _handle_bulk_priority_review(
+    user_id: str, services: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
+    """
+    Handle bulk priority review request.
+
+    Args:
+        user_id: User requesting priority review
+        services: Service instances
+
+    Returns:
+        Response dict for bulk priority list or None if failed
+    """
+    try:
+        from apps.server.slack.blocks import render_bulk_priority_list
+
+        # Get todoist client
+        todoist = services.get("todoist")
+        if not todoist:
+            return {"response_type": "error", "message": "Todoist service not available"}
+
+        # Fetch open tasks (limit to 50, first page)
+        tasks = todoist.get_tasks(filter="!completed")
+        if not tasks:
+            return {
+                "response_type": "simple",
+                "message": "No open tasks found to adjust priorities",
+            }
+
+        # Sort by due date, then created date
+        def sort_key(task):
+            due = task.get("due")
+            if due and due.get("date"):
+                return (0, due["date"])  # Due tasks first
+            return (1, task.get("created_at", ""))
+
+        tasks.sort(key=sort_key)
+
+        # Limit to first 10 for pagination
+        page_size = 10
+        page_tasks = tasks[:page_size]
+        total_pages = (len(tasks) + page_size - 1) // page_size
+
+        # Convert to format expected by render function
+        formatted_tasks = []
+        for task in page_tasks:
+            # Get human priority from Todoist priority
+            todoist_priority = task.get("priority", 2)  # Default normal
+            human_priority = todoist.get_priority_human(todoist_priority)
+
+            formatted_tasks.append(
+                {"id": task["id"], "content": task["content"], "priority_human": human_priority}
+            )
+
+        return {
+            "response_type": "bulk_priorities",
+            "tasks": formatted_tasks,
+            "page": 0,
+            "total_pages": total_pages,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to handle bulk priority review: {e}")
+        return {"response_type": "error", "message": "Failed to fetch tasks for priority review"}

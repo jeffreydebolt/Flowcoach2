@@ -13,26 +13,44 @@ FlowCoach is a Slack bot that helps you manage your tasks and time using GTD (Ge
 ## Setup
 
 1. Clone the repository
+
 ```bash
 git clone https://github.com/yourusername/flowcoach.git
 cd flowcoach
 ```
 
 2. Install dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
 3. Set up environment variables in `.env`:
-```
-SLACK_BOT_TOKEN=your_slack_bot_token
-SLACK_APP_TOKEN=your_slack_app_token
-SLACK_SIGNING_SECRET=your_slack_signing_secret
-TODOIST_API_TOKEN=your_todoist_api_token
-OPENAI_API_KEY=your_openai_api_key
+
+```bash
+# Required
+SLACK_BOT_TOKEN=xoxb-your-bot-token
+SLACK_APP_TOKEN=xapp-your-app-token
+SLACK_SIGNING_SECRET=your-signing-secret
+TODOIST_API_TOKEN=your-todoist-token
+
+# Optional
+OPENAI_API_KEY=your-openai-key
+TZ=America/New_York
+
+# FlowCoach v1 Feature Flags (default: false)
+# Environment variables automatically map: FC_MORNING_MODAL_V1 → fc.morning_modal_v1
+FC_INTERVIEW_MODAL_V1=true
+FC_HOME_TAB_V1=true
+FC_MORNING_MODAL_V1=false
+FC_WRAP_MODAL_V1=false
+FC_WEEKLY_MODAL_V1=false
+FC_CHECKIN_V1=false
+FC_INTENT_ROUTER_V1=false
 ```
 
 4. Run the bot
+
 ```bash
 python app.py
 ```
@@ -40,6 +58,7 @@ python app.py
 ## Usage
 
 In Slack, you can:
+
 - Create tasks: "add a task to write documentation"
 - Tasks will be formatted according to GTD principles
 - Add time estimates using the buttons that appear
@@ -48,6 +67,7 @@ In Slack, you can:
 ## Development
 
 The project is structured as follows:
+
 - `app.py`: Main application entry point
 - `services/`: External service integrations (Todoist, Calendar, OpenAI)
 - `handlers/`: Slack message and action handlers

@@ -1,23 +1,26 @@
 # FlowCoach System Review - Current State
-*Date: November 2025*
+
+_Date: November 2025_
 
 ## Executive Summary
+
 FlowCoach is a dual-runtime productivity system that helps users transform chaotic task lists into organized, actionable items using AI-powered natural language processing. The system operates through both a Slack bot interface (Python) and a CLI tool (TypeScript), sharing a SQLite database for state management.
 
 ## 🏗️ Architecture Overview
 
 ### Dual-Runtime System
+
 1. **Python Slack Bot** (app.py)
    - Real-time Slack interaction via Socket Mode
    - Integrates with Todoist, OpenAI, and Google Calendar
    - BMAD-inspired agent framework for complex workflows
-   
 2. **TypeScript CLI** (src/cli.ts)
    - Command-line interface for task organization
    - Claude API integration for advanced parsing
    - Session-based workflow management
 
 ### Shared Infrastructure
+
 - **Database**: SQLite (flowcoach.db) for sessions, workflows, and thread state
 - **Configuration**: Environment-based (.env) with support for multiple environments
 - **Monorepo Structure**: Unified codebase for coordinated development
@@ -25,17 +28,21 @@ FlowCoach is a dual-runtime productivity system that helps users transform chaot
 ## ✅ Working Features
 
 ### Core Functionality
+
 1. **Natural Language Task Parsing**
+
    - Time estimation extraction (2min, 10min, 30+min buckets)
    - GTD principle application (Next Actions, Projects)
    - Deterministic parsing with AI enhancement
 
 2. **Todoist Integration**
+
    - Task creation with time labels (@t_2min, @t_10min, @t_30plus)
    - Project assignment and management
    - Idempotent task creation (prevents duplicates)
 
 3. **Session Management**
+
    - Preview/Accept workflow for task review
    - Session persistence and resume capability
    - Thread state tracking for contextual responses
@@ -46,6 +53,7 @@ FlowCoach is a dual-runtime productivity system that helps users transform chaot
    - OAuth2 authentication flow
 
 ### Agent System (Python)
+
 - Base agent framework with YAML-defined behaviors
 - Specialized agents:
   - GTD Planning Agent
@@ -55,6 +63,7 @@ FlowCoach is a dual-runtime productivity system that helps users transform chaot
   - Communication Agent
 
 ### Development Tools
+
 - Code formatting: Black (Python), Prettier (TypeScript)
 - Linting: Flake8 (Python), ESLint (TypeScript)
 - Pre-commit hooks configured
@@ -63,6 +72,7 @@ FlowCoach is a dual-runtime productivity system that helps users transform chaot
 ## 🔌 Current Integrations
 
 ### External Services
+
 1. **Slack** - Bot/App tokens for workspace interaction
 2. **Todoist** - API token for task management
 3. **OpenAI** - GPT integration for task enhancement
@@ -70,6 +80,7 @@ FlowCoach is a dual-runtime productivity system that helps users transform chaot
 5. **Google Calendar** - OAuth2 for calendar operations
 
 ### Internal Services
+
 - Session Service - Workflow state management
 - Thread State Service - Conversation context
 - Workflow Persistence Service - Multi-step flow tracking
@@ -77,6 +88,7 @@ FlowCoach is a dual-runtime productivity system that helps users transform chaot
 ## 📊 Data Architecture
 
 ### SQLite Schema
+
 ```sql
 - sessions: User interactions and parsed tasks
 - created_tasks: Todoist task tracking
@@ -85,6 +97,7 @@ FlowCoach is a dual-runtime productivity system that helps users transform chaot
 ```
 
 ### Data Flow
+
 1. Input (Slack/CLI) → Parser → Session Storage
 2. Preview Generation → User Confirmation
 3. Task Creation → Todoist API → Audit Trail
@@ -92,12 +105,15 @@ FlowCoach is a dual-runtime productivity system that helps users transform chaot
 ## 🚀 Current Capabilities
 
 ### What's Working Well
+
 1. **Task Organization**
+
    - Parse complex, multi-task inputs
    - Apply time estimates automatically
    - Generate structured task lists
 
 2. **Workflow Management**
+
    - Preview before creation
    - Resume interrupted sessions
    - Maintain conversation context
@@ -108,12 +124,15 @@ FlowCoach is a dual-runtime productivity system that helps users transform chaot
    - Shared state between platforms
 
 ### Limitations & Known Issues
+
 1. **Infrastructure**
+
    - SQLite limits scalability
    - No production deployment setup
    - Manual secret management
 
 2. **Features**
+
    - Limited error recovery
    - No automated testing in CI/CD
    - Basic monitoring/observability
@@ -126,16 +145,19 @@ FlowCoach is a dual-runtime productivity system that helps users transform chaot
 ## 🔄 Gap Analysis: Current vs. Target Architecture
 
 ### Infrastructure Gaps
+
 - **Current**: Local SQLite, manual deployment
 - **Target**: AWS Fargate + Aurora Serverless, automated CI/CD
 - **Gap**: Need containerization, IaC, cloud migration
 
 ### Feature Gaps
+
 - **Current**: Basic task parsing and creation
 - **Target**: Full GTD workflow automation, advanced analytics
 - **Gap**: Enhanced agent capabilities, reporting features
 
 ### Operational Gaps
+
 - **Current**: Local development only
 - **Target**: Multi-environment (Dev/Staging/Prod)
 - **Gap**: Environment management, secrets rotation, monitoring
@@ -143,12 +165,15 @@ FlowCoach is a dual-runtime productivity system that helps users transform chaot
 ## 📈 Next Steps & Recommendations
 
 ### Immediate Priorities
+
 1. **Containerization**
+
    - Dockerize both Python and TypeScript services
    - Create docker-compose for local development
    - Prepare for cloud deployment
 
 2. **Testing Enhancement**
+
    - Expand unit test coverage
    - Add integration tests for key workflows
    - Set up CI/CD pipeline
@@ -159,18 +184,21 @@ FlowCoach is a dual-runtime productivity system that helps users transform chaot
    - Add error handling and recovery
 
 ### Medium-term Goals
+
 1. Deploy to AWS Fargate
 2. Implement Aurora Serverless
 3. Add web interface
 4. Enhanced analytics and reporting
 
 ### Long-term Vision
+
 1. Multi-tenant support
 2. Advanced AI agents
 3. Mobile applications
 4. Enterprise features
 
 ## 💡 Key Strengths
+
 - Solid foundation with working MVP
 - Clean separation of concerns
 - Extensible agent framework
@@ -178,6 +206,7 @@ FlowCoach is a dual-runtime productivity system that helps users transform chaot
 - Comprehensive architecture documentation
 
 ## ⚠️ Risk Areas
+
 - Single point of failure (SQLite)
 - No backup/recovery strategy
 - Limited error handling
@@ -185,4 +214,5 @@ FlowCoach is a dual-runtime productivity system that helps users transform chaot
 - Credential management
 
 ## Conclusion
+
 FlowCoach has a strong foundation with working core features and a clear architectural vision. The system successfully demonstrates the dual-runtime concept and provides real value for task management. The next phase should focus on production readiness, starting with containerization and enhanced testing, followed by cloud deployment according to the documented architecture plans.

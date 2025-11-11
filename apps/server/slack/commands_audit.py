@@ -28,31 +28,29 @@ class AuditCommandHandler:
         self.todoist = TodoistClient()
 
         # Load message templates
-        template_path = os.path.join(os.path.dirname(__file__), '..', 'templates', 'audit.json')
-        with open(template_path, 'r') as f:
+        template_path = os.path.join(os.path.dirname(__file__), "..", "templates", "audit.json")
+        with open(template_path, "r") as f:
             self.templates = json.load(f)
 
     def handle_audit_command(self, ack, command, client: WebClient):
-        """Handle /flow audit and /audit slash commands."""
+        """Handle /audit slash command."""
         ack()
+        self._process_audit_command(command, client)
 
-        # Handle both /flow audit and /audit commands
-        command_text = command.get('text', '').strip()
-        if command['command'] == '/flow' and command_text != 'audit':
-            # This is a /flow command but not audit subcommand
-            return
+    def _process_audit_command(self, command, client: WebClient):
+        """Process audit command logic."""
 
         # Check if audit feature is enabled
         if not is_feature_enabled(FeatureFlag.PROJECT_AUDIT):
             client.chat_postMessage(
-                channel=command['user_id'],
-                text=":warning: Project audit feature is currently disabled."
+                channel=command["user_id"],
+                text=":warning: Project audit feature is currently disabled.",
             )
             return
 
         try:
-            user_id = command['user_id']
-            channel_id = command['channel_id']
+            user_id = command["user_id"]
+            channel_id = command["channel_id"]
 
             logger.info(f"Processing audit command from user {user_id}")
 
@@ -68,9 +66,7 @@ class AuditCommandHandler:
 
             # Send audit message
             client.chat_postMessage(
-                channel=user_id,  # Send as DM
-                blocks=blocks,
-                text="FlowCoach Project Audit"
+                channel=user_id, blocks=blocks, text="FlowCoach Project Audit"  # Send as DM
             )
 
             # Log audit completion
@@ -79,11 +75,11 @@ class AuditCommandHandler:
                 action="audit_command_completed",
                 payload={
                     "user_id": user_id,
-                    "total_projects": summary['total_projects'],
-                    "healthy_count": summary['healthy_count'],
-                    "stalled_count": summary['stalled_count']
+                    "total_projects": summary["total_projects"],
+                    "healthy_count": summary["healthy_count"],
+                    "stalled_count": summary["stalled_count"],
                 },
-                user_id=user_id
+                user_id=user_id,
             )
 
             logger.info(f"Audit completed for user {user_id}: {summary['total_projects']} projects")
@@ -101,10 +97,10 @@ class AuditCommandHandler:
                             "type": "section",
                             "text": {
                                 "type": "mrkdwn",
-                                "text": ":warning: *Project Audit Failed*\n\nI encountered an error while analyzing your projects. Please try again in a moment."
-                            }
+                                "text": ":warning: *Project Audit Failed*\n\nI encountered an error while analyzing your projects. Please try again in a moment.",
+                            },
                         }
-                    ]
+                    ],
                 )
             except Exception as slack_error:
                 logger.error(f"Failed to send error message: {slack_error}")
@@ -114,20 +110,20 @@ class AuditCommandHandler:
         ack()
 
         try:
-            user_id = body['user']['id']
-            action_id = body['actions'][0]['action_id']
-            project_id = body['actions'][0]['value']
+            user_id = body["user"]["id"]
+            action_id = body["actions"][0]["action_id"]
+            project_id = body["actions"][0]["value"]
 
-            if action_id.startswith('recommit'):
-                project_id = project_id.replace('recommit_', '')
+            if action_id.startswith("recommit"):
+                project_id = project_id.replace("recommit_", "")
                 self._handle_recommit_action(user_id, project_id, client)
 
-            elif action_id.startswith('pause'):
-                project_id = project_id.replace('pause_', '')
+            elif action_id.startswith("pause"):
+                project_id = project_id.replace("pause_", "")
                 self._handle_pause_action(user_id, project_id, client)
 
-            elif action_id.startswith('rewrite'):
-                project_id = project_id.replace('rewrite_', '')
+            elif action_id.startswith("rewrite"):
+                project_id = project_id.replace("rewrite_", "")
                 self._handle_rewrite_action(user_id, project_id, client)
 
             # Update the original message to show action taken
@@ -140,8 +136,7 @@ class AuditCommandHandler:
         """Handle recommit action."""
         if not is_feature_enabled(FeatureFlag.PROJECT_MOMENTUM):
             client.chat_postMessage(
-                channel=user_id,
-                text=":warning: Project momentum feature is currently disabled."
+                channel=user_id, text=":warning: Project momentum feature is currently disabled."
             )
             return
 
@@ -152,7 +147,10 @@ class AuditCommandHandler:
             if success:
                 # Get project info
                 projects = self.todoist.get_projects()
-                project_name = next((p['name'] for p in projects if str(p['id']) == project_id), f"Project {project_id}")
+                project_name = next(
+                    (p["name"] for p in projects if str(p["id"]) == project_id),
+                    f"Project {project_id}",
+                )
 
                 # Create a "next action" task
                 task_content = f"Next action for: {project_name}"
@@ -162,33 +160,33 @@ class AuditCommandHandler:
 
                     client.chat_postMessage(
                         channel=user_id,
-                        text=f":muscle: Recommitted to *{project_name}*! I've boosted its momentum and created a task: '{task_content}'"
+                        text=f":muscle: Recommitted to *{project_name}*! I've boosted its momentum and created a task: '{task_content}'",
                     )
 
                 except Exception as task_error:
                     logger.warning(f"Failed to create next action task: {task_error}")
                     client.chat_postMessage(
                         channel=user_id,
-                        text=f":muscle: Recommitted to *{project_name}*! Momentum boosted to 60+."
+                        text=f":muscle: Recommitted to *{project_name}*! Momentum boosted to 60+.",
                     )
 
                 log_event(
                     severity="info",
                     action="audit_recommit_completed",
                     payload={"project_id": project_id, "project_name": project_name},
-                    user_id=user_id
+                    user_id=user_id,
                 )
             else:
                 client.chat_postMessage(
                     channel=user_id,
-                    text=":warning: I couldn't recommit to that project. It might not exist in your momentum tracking."
+                    text=":warning: I couldn't recommit to that project. It might not exist in your momentum tracking.",
                 )
 
         except Exception as e:
             logger.error(f"Recommit action failed: {e}")
             client.chat_postMessage(
                 channel=user_id,
-                text=":warning: Sorry, I couldn't complete the recommit action. Please try again."
+                text=":warning: Sorry, I couldn't complete the recommit action. Please try again.",
             )
 
     def _handle_pause_action(self, user_id: str, project_id: str, client: WebClient):
@@ -200,45 +198,49 @@ class AuditCommandHandler:
             if success:
                 # Get project info
                 projects = self.todoist.get_projects()
-                project_name = next((p['name'] for p in projects if str(p['id']) == project_id), f"Project {project_id}")
+                project_name = next(
+                    (p["name"] for p in projects if str(p["id"]) == project_id),
+                    f"Project {project_id}",
+                )
 
                 client.chat_postMessage(
                     channel=user_id,
-                    text=f":pause_button: Paused *{project_name}*. It won't lose momentum while on hold."
+                    text=f":pause_button: Paused *{project_name}*. It won't lose momentum while on hold.",
                 )
 
                 log_event(
                     severity="info",
                     action="audit_pause_completed",
                     payload={"project_id": project_id, "project_name": project_name},
-                    user_id=user_id
+                    user_id=user_id,
                 )
             else:
                 client.chat_postMessage(
                     channel=user_id,
-                    text=":warning: I couldn't pause that project. It might not exist in your momentum tracking."
+                    text=":warning: I couldn't pause that project. It might not exist in your momentum tracking.",
                 )
 
         except Exception as e:
             logger.error(f"Pause action failed: {e}")
             client.chat_postMessage(
                 channel=user_id,
-                text=":warning: Sorry, I couldn't complete the pause action. Please try again."
+                text=":warning: Sorry, I couldn't complete the pause action. Please try again.",
             )
 
     def _handle_rewrite_action(self, user_id: str, project_id: str, client: WebClient):
         """Handle rewrite action by starting rewrite dialog."""
         if not is_feature_enabled(FeatureFlag.PROJECT_REWRITE):
             client.chat_postMessage(
-                channel=user_id,
-                text=":warning: Project rewrite feature is currently disabled."
+                channel=user_id, text=":warning: Project rewrite feature is currently disabled."
             )
             return
 
         try:
             # Get project info
             projects = self.todoist.get_projects()
-            project_name = next((p['name'] for p in projects if str(p['id']) == project_id), f"Project {project_id}")
+            project_name = next(
+                (p["name"] for p in projects if str(p["id"]) == project_id), f"Project {project_id}"
+            )
 
             # Import and start rewrite flow
             from .dialogs_rewrite import start_rewrite_for_project
@@ -249,21 +251,20 @@ class AuditCommandHandler:
                 log_event(
                     severity="info",
                     action="audit_rewrite_started",
-                    payload={
-                        "project_id": project_id,
-                        "project_name": project_name
-                    },
-                    user_id=user_id
+                    payload={"project_id": project_id, "project_name": project_name},
+                    user_id=user_id,
                 )
 
         except Exception as e:
             logger.error(f"Rewrite action failed: {e}")
             client.chat_postMessage(
                 channel=user_id,
-                text=":warning: Sorry, I couldn't start the rewrite flow. Please try again."
+                text=":warning: Sorry, I couldn't start the rewrite flow. Please try again.",
             )
 
-    def _build_audit_message(self, categorized: Dict[str, List[ProjectAuditItem]], summary: Dict[str, Any]) -> List[Dict]:
+    def _build_audit_message(
+        self, categorized: Dict[str, List[ProjectAuditItem]], summary: Dict[str, Any]
+    ) -> List[Dict]:
         """Build Slack message blocks for audit report."""
         blocks = []
 
@@ -274,59 +275,67 @@ class AuditCommandHandler:
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": f":chart_with_upwards_trend: *FlowCoach Project Audit*\n\n{summary_text}"
-            }
+                "text": f":chart_with_upwards_trend: *FlowCoach Project Audit*\n\n{summary_text}",
+            },
         }
         blocks.append(header_block)
         blocks.append({"type": "divider"})
 
         # Healthy projects
-        if categorized['healthy']:
-            blocks.append({
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f":green_heart: *Healthy Projects* ({len(categorized['healthy'])})"
+        if categorized["healthy"]:
+            blocks.append(
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f":green_heart: *Healthy Projects* ({len(categorized['healthy'])})",
+                    },
                 }
-            })
-            for project in categorized['healthy'][:5]:  # Limit to 5 for brevity
+            )
+            for project in categorized["healthy"][:5]:  # Limit to 5 for brevity
                 blocks.append(self._build_project_block(project))
 
         # Needs definition projects
-        if categorized['needs_definition']:
-            blocks.append({
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f":yellow_heart: *Needs Definition* ({len(categorized['needs_definition'])})"
+        if categorized["needs_definition"]:
+            blocks.append(
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f":yellow_heart: *Needs Definition* ({len(categorized['needs_definition'])})",
+                    },
                 }
-            })
-            for project in categorized['needs_definition'][:5]:
+            )
+            for project in categorized["needs_definition"][:5]:
                 blocks.append(self._build_project_block(project))
 
         # Stalled projects
-        if categorized['stalled']:
-            blocks.append({
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f":red_circle: *Stalled Projects* ({len(categorized['stalled'])})"
+        if categorized["stalled"]:
+            blocks.append(
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f":red_circle: *Stalled Projects* ({len(categorized['stalled'])})",
+                    },
                 }
-            })
-            for project in categorized['stalled'][:5]:
+            )
+            for project in categorized["stalled"][:5]:
                 blocks.append(self._build_project_block(project))
 
         # Summary footer
         timestamp = datetime.now().strftime("%m/%d at %I:%M %p")
-        blocks.append({
-            "type": "context",
-            "elements": [
-                {
-                    "type": "mrkdwn",
-                    "text": f":bar_chart: {summary['healthy_percentage']}% healthy • {summary['total_projects']} total projects • Updated {timestamp}"
-                }
-            ]
-        })
+        blocks.append(
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": f":bar_chart: {summary['healthy_percentage']}% healthy • {summary['total_projects']} total projects • Updated {timestamp}",
+                    }
+                ],
+            }
+        )
 
         return blocks
 
@@ -354,33 +363,35 @@ class AuditCommandHandler:
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": f"*{project.project_name}* • Score: {project.momentum_score} • {status_emoji} {idle_text}"
-            }
+                "text": f"*{project.project_name}* • Score: {project.momentum_score} • {status_emoji} {idle_text}",
+            },
         }
 
         # Add actions for stalled/needs definition projects
-        if project.category in ['stalled', 'needs_definition']:
+        if project.category in ["stalled", "needs_definition"]:
             block["accessory"] = {
                 "type": "overflow",
                 "options": [
                     {
                         "text": {"type": "plain_text", "text": ":muscle: Recommit"},
-                        "value": f"recommit_{project.project_id}"
+                        "value": f"recommit_{project.project_id}",
                     },
                     {
                         "text": {"type": "plain_text", "text": ":pause_button: Pause"},
-                        "value": f"pause_{project.project_id}"
+                        "value": f"pause_{project.project_id}",
                     },
                     {
                         "text": {"type": "plain_text", "text": ":writing_hand: Rewrite"},
-                        "value": f"rewrite_{project.project_id}"
-                    }
-                ]
+                        "value": f"rewrite_{project.project_id}",
+                    },
+                ],
             }
 
         return block
 
-    def _update_audit_message_with_action(self, body, action_id: str, project_id: str, client: WebClient):
+    def _update_audit_message_with_action(
+        self, body, action_id: str, project_id: str, client: WebClient
+    ):
         """Update the audit message to show action was taken."""
         try:
             # Simple approach: just add a small confirmation
@@ -394,8 +405,7 @@ def register_audit_commands(app: App):
     """Register audit-related Slack commands and actions."""
     handler = AuditCommandHandler()
 
-    # Slash commands - both /flow audit and /audit work
-    app.command("/flow")(handler.handle_audit_command)
+    # Only single-word command
     app.command("/audit")(handler.handle_audit_command)
 
     # Action handlers

@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ProjectAuditItem:
     """Single project in audit report."""
+
     project_id: str
     project_name: str
     momentum_score: int
@@ -29,7 +30,9 @@ class ProjectAuditor:
     def __init__(self):
         self.tracker = MomentumTracker()
 
-    def classify_projects(self, projects: List[Dict[str, Any]]) -> Dict[str, List[ProjectAuditItem]]:
+    def classify_projects(
+        self, projects: List[Dict[str, Any]]
+    ) -> Dict[str, List[ProjectAuditItem]]:
         """
         Classify projects into audit categories.
 
@@ -39,15 +42,11 @@ class ProjectAuditor:
         Returns:
             Dict with 'healthy', 'needs_definition', 'stalled' categories
         """
-        categorized = {
-            'healthy': [],
-            'needs_definition': [],
-            'stalled': []
-        }
+        categorized = {"healthy": [], "needs_definition": [], "stalled": []}
 
         for project in projects:
-            project_id = str(project['id'])
-            project_name = project['name']
+            project_id = str(project["id"])
+            project_name = project["name"]
 
             # Get momentum data
             momentum = self.tracker.get_project_momentum(project_id)
@@ -62,20 +61,20 @@ class ProjectAuditor:
                 days_idle = (datetime.now() - momentum.last_activity_at).days
             else:
                 # No momentum data means new/inactive project
-                momentum_score = 100
-                status = 'active'
+                momentum_score = 60  # New projects need definition, not stalled
+                status = "active"
                 outcome_defined = False
                 due_date = None
                 days_idle = 0
 
             # Determine category based on audit rules
-            if status == 'stalled' or momentum_score < 50:
-                category = 'stalled'
+            if status == "stalled" or momentum_score < 50:
+                category = "stalled"
             elif not outcome_defined or not due_date:
-                category = 'needs_definition'
+                category = "needs_definition"
             else:
                 # Healthy: outcome_defined && due_date && momentum>=50
-                category = 'healthy'
+                category = "healthy"
 
             audit_item = ProjectAuditItem(
                 project_id=project_id,
@@ -85,7 +84,7 @@ class ProjectAuditor:
                 outcome_defined=outcome_defined,
                 due_date=due_date,
                 category=category,
-                last_activity_days=days_idle
+                last_activity_days=days_idle,
             )
 
             categorized[category].append(audit_item)
@@ -96,17 +95,21 @@ class ProjectAuditor:
 
         return categorized
 
-    def get_audit_summary(self, categorized_projects: Dict[str, List[ProjectAuditItem]]) -> Dict[str, Any]:
+    def get_audit_summary(
+        self, categorized_projects: Dict[str, List[ProjectAuditItem]]
+    ) -> Dict[str, Any]:
         """Generate audit summary statistics."""
         total_projects = sum(len(projects) for projects in categorized_projects.values())
 
         return {
-            'total_projects': total_projects,
-            'healthy_count': len(categorized_projects['healthy']),
-            'needs_definition_count': len(categorized_projects['needs_definition']),
-            'stalled_count': len(categorized_projects['stalled']),
-            'healthy_percentage': round((len(categorized_projects['healthy']) / max(1, total_projects)) * 100, 1),
-            'audit_timestamp': datetime.now().isoformat()
+            "total_projects": total_projects,
+            "healthy_count": len(categorized_projects["healthy"]),
+            "needs_definition_count": len(categorized_projects["needs_definition"]),
+            "stalled_count": len(categorized_projects["stalled"]),
+            "healthy_percentage": round(
+                (len(categorized_projects["healthy"]) / max(1, total_projects)) * 100, 1
+            ),
+            "audit_timestamp": datetime.now().isoformat(),
         }
 
     def recommend_actions(self, project: ProjectAuditItem) -> List[str]:
@@ -118,20 +121,20 @@ class ProjectAuditor:
         """
         recommendations = []
 
-        if project.category == 'stalled':
-            recommendations.append('Recommit: Boost momentum and add next action')
-            recommendations.append('Pause: Put on hold until needed')
-            recommendations.append('Rewrite: Redefine outcome and timeline')
+        if project.category == "stalled":
+            recommendations.append("Recommit: Boost momentum and add next action")
+            recommendations.append("Pause: Put on hold until needed")
+            recommendations.append("Rewrite: Redefine outcome and timeline")
 
-        elif project.category == 'needs_definition':
-            recommendations.append('Rewrite: Define concrete outcome and due date')
+        elif project.category == "needs_definition":
+            recommendations.append("Rewrite: Define concrete outcome and due date")
             if project.momentum_score < 75:
-                recommendations.append('Recommit: Add energy with next action')
+                recommendations.append("Recommit: Add energy with next action")
 
         else:  # healthy
             if project.last_activity_days > 3:
-                recommendations.append('Check-in: Add progress update or next action')
+                recommendations.append("Check-in: Add progress update or next action")
             else:
-                recommendations.append('Keep going: Project is on track')
+                recommendations.append("Keep going: Project is on track")
 
         return recommendations

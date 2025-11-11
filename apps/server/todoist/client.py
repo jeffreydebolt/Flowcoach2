@@ -14,21 +14,23 @@ class TodoistClient:
 
     def __init__(self, api_token: Optional[str] = None):
         """Initialize Todoist client."""
-        self.api_token = api_token or os.getenv('TODOIST_API_TOKEN')
+        self.api_token = api_token or os.getenv("TODOIST_API_TOKEN")
         if not self.api_token:
             from ..core.errors import MissingConfigError
+
             raise MissingConfigError(
-                'TODOIST_API_TOKEN',
-                'Get your API token from Todoist Settings > Integrations'
+                "TODOIST_API_TOKEN", "Get your API token from Todoist Settings > Integrations"
             )
         try:
             self.api = TodoistAPI(self.api_token)
         except Exception as e:
-            raise InvalidTokenError('Todoist', 'Verify your TODOIST_API_TOKEN is correct')
+            raise InvalidTokenError("Todoist", "Verify your TODOIST_API_TOKEN is correct")
 
     @retry(max_attempts=3, exceptions=(Exception,))
     @handle_todoist_error
-    def get_tasks(self, project_id: Optional[str] = None, label: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_tasks(
+        self, project_id: Optional[str] = None, label: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Fetch tasks with optional filters."""
         try:
             filter_str = ""
@@ -42,7 +44,7 @@ class TodoistClient:
         except Exception as e:
             logger.error(f"Failed to fetch tasks: {e}")
             if "401" in str(e) or "unauthorized" in str(e).lower():
-                raise InvalidTokenError('Todoist')
+                raise InvalidTokenError("Todoist")
             raise TodoistError(f"Failed to fetch tasks: {e}")
 
     @retry(max_attempts=3, exceptions=(Exception,))
@@ -51,7 +53,24 @@ class TodoistClient:
         """Fetch all projects."""
         try:
             projects = self.api.get_projects()
-            return [project.to_dict() for project in projects]
+            return [
+                {
+                    "id": project.id,
+                    "name": project.name,
+                    "color": project.color,
+                    "parent_id": project.parent_id,
+                    "order": project.order,
+                    "comment_count": project.comment_count,
+                    "is_shared": project.is_shared,
+                    "is_favorite": project.is_favorite,
+                    "is_inbox_project": project.is_inbox_project,
+                    "is_team_inbox": project.is_team_inbox,
+                    "url": project.url,
+                    "view_style": project.view_style,
+                    "can_assign_tasks": project.can_assign_tasks,
+                }
+                for project in projects
+            ]
         except Exception as e:
             logger.error(f"Failed to fetch projects: {e}")
             raise TodoistError(f"Failed to fetch projects: {e}")
@@ -147,9 +166,9 @@ class TodoistClient:
             # Build update parameters
             update_params = {}
             if name is not None:
-                update_params['name'] = name
+                update_params["name"] = name
             if color is not None:
-                update_params['color'] = color
+                update_params["color"] = color
 
             if not update_params:
                 logger.warning("No update parameters provided for project")
@@ -159,12 +178,7 @@ class TodoistClient:
             self.api.update_project(project_id=project_id, **update_params)
 
             log_event(
-                "info",
-                "project_updated",
-                {
-                    "project_id": project_id,
-                    "updates": update_params
-                }
+                "info", "project_updated", {"project_id": project_id, "updates": update_params}
             )
 
             logger.info(f"Updated project {project_id}: {update_params}")

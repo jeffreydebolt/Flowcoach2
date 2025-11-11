@@ -16,10 +16,11 @@ from core.communication_agent import CommunicationAgent
 
 logger = logging.getLogger(__name__)
 
+
 def initialize_services(config):
     """Initialize all services and agents based on configuration."""
     services = {}
-    
+
     # Initialize Services
     if config["todoist"]["api_token"]:
         try:
@@ -28,12 +29,12 @@ def initialize_services(config):
             logger.error(f"Error initializing Todoist service: {e}")
     else:
         logger.warning("Todoist API token not found. Todoist service not initialized.")
-        
+
     try:
         services["calendar"] = CalendarService(config["calendar"])
     except Exception as e:
         logger.error(f"Error initializing Calendar service: {e}")
-        
+
     if config["openai"]["api_key"]:
         try:
             services["openai"] = OpenAIService(config["openai"])
@@ -41,7 +42,7 @@ def initialize_services(config):
             logger.error(f"Error initializing OpenAI service: {e}")
     else:
         logger.warning("OpenAI API key not found. OpenAI service not initialized.")
-    
+
     if config["claude"]["api_key"]:
         try:
             services["claude"] = ClaudeService(config["claude"])
@@ -69,7 +70,14 @@ def initialize_services(config):
 
     # Add agents to the services dictionary
     services["agents"] = agents
-        
+
     return services
 
-__all__ = ["initialize_services", "TodoistService", "CalendarService", "OpenAIService", "ClaudeService"]
+
+__all__ = [
+    "initialize_services",
+    "TodoistService",
+    "CalendarService",
+    "OpenAIService",
+    "ClaudeService",
+]

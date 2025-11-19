@@ -1,13 +1,12 @@
 """Typed Todoist client wrapper with retry and metadata support."""
 
 import os
-import json
 import time
 import logging
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from todoist_api_python.api import TodoistAPI
-from todoist_api_python.models import Task, Project, Comment
+from todoist_api_python.models import Task
 
 logger = logging.getLogger(__name__)
 
@@ -246,6 +245,22 @@ class TodoistClient:
 
     def _task_to_dict(self, task: Task) -> Dict[str, Any]:
         """Convert Task object to dictionary."""
+        due_dict = None
+        if task.due:
+            # Handle different versions of Due object
+            if hasattr(task.due, "dict"):
+                due_dict = task.due.dict()
+            elif hasattr(task.due, "__dict__"):
+                due_dict = task.due.__dict__
+            else:
+                # Fallback - try to extract date manually
+                due_dict = {
+                    "date": getattr(task.due, "date", None),
+                    "string": getattr(task.due, "string", None),
+                    "datetime": getattr(task.due, "datetime", None),
+                    "timezone": getattr(task.due, "timezone", None),
+                }
+
         return {
             "id": task.id,
             "content": task.content,
@@ -253,7 +268,7 @@ class TodoistClient:
             "project_id": task.project_id,
             "labels": task.labels or [],
             "priority": task.priority,
-            "due": task.due.dict() if task.due else None,
+            "due": due_dict,
             "url": task.url,
             "comment_count": task.comment_count,
             "created_at": task.created_at,
@@ -279,19 +294,6 @@ class TodoistClient:
             return self._retry_with_backoff(_add_label)
         except Exception as e:
             logger.error(f"Failed to add label {label} to task {task_id}: {e}")
-            return False
-
-    def add_task_comment(self, task_id: str, comment_text: str) -> bool:
-        """Add a comment to a task."""
-
-        def _add_comment():
-            self.api.add_comment(content=comment_text, task_id=task_id)
-            return True
-
-        try:
-            return self._retry_with_backoff(_add_comment)
-        except Exception as e:
-            logger.error(f"Failed to add comment to task {task_id}: {e}")
             return False
 
     def set_priority_human(self, task_id: str, p_human: int) -> bool:
@@ -335,3 +337,46 @@ class TodoistClient:
         # Todoist: 1=low, 2=normal, 3=high, 4=urgent
         # Human: P1=urgent, P2=high, P3=normal, P4=low
         return 5 - p_todoist
+
+    def get_open_flow_top_today_tasks(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get all open tasks with flow_top_today label for a user."""
+
+        def _get_tasks():
+            # For now, we get ALL flow_top_today tasks since we don't have user mapping
+            # In production, you'd filter by user's projects or a user-specific label
+            tasks = self.api.get_tasks(filter="@flow_top_today")
+            return [self._task_to_dict(task) for task in tasks if not task.is_completed]
+
+        return self._retry_with_backoff(_get_tasks)
+
+    def clear_label_from_task(self, task_id: str, label: str) -> None:
+        """Remove a specific label from a task."""
+
+        def _clear_label():
+            task = self.api.get_task(task_id)
+            current_labels = task.labels or []
+            new_labels = [lbl for lbl in current_labels if lbl != label]
+            self.api.update_task(task_id, labels=new_labels)
+
+        self._retry_with_backoff(_clear_label)
+
+    def update_task(self, task_id: str, payload: Dict[str, Any]) -> None:
+        """Update a task with the given payload."""
+
+        def _update():
+            # Handle priority conversion if present
+            if "priority" in payload:
+                # Convert human priority (1-4) to Todoist priority (4-1)
+                human_priority = payload["priority"]
+                payload["priority"] = 5 - human_priority
+
+            # Handle labels - merge with existing if present
+            if "labels" in payload:
+                task = self.api.get_task(task_id)
+                current_labels = task.labels or []
+                new_labels = list(set(current_labels + payload["labels"]))
+                payload["labels"] = new_labels
+
+            self.api.update_task(task_id, **payload)
+
+        self._retry_with_backoff(_update)

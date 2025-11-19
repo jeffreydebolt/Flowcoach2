@@ -249,19 +249,7 @@ class MorningBriefModal:
             "title": {"type": "plain_text", "text": "Morning Brief"},
             "close": {"type": "plain_text", "text": "Close"},
             "blocks": [
-                {"type": "header", "text": {"type": "plain_text", "text": "🎉 All Clear!"}},
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "No tasks need planning right now.\n\n"
-                        + "Tasks that appear here:\n"
-                        + "• @flow_tomorrow tasks\n"
-                        + "• Overdue tasks\n"
-                        + "• Priority 1 tasks\n"
-                        + "• @flow_weekly tasks (on Mondays)",
-                    },
-                },
+                {"type": "section", "text": {"type": "mrkdwn", "text": "No tasks to plan today."}},
             ],
         }
 
@@ -362,6 +350,13 @@ def register_morning_brief_handlers(app: App) -> None:
     def handle_morning_brief_submit(ack, body, client):
         """Handle morning brief submission."""
         ack()  # Acknowledge the request immediately
+        handler.handle_submission(body, client)
+
+    @app.view("flowcoach_morning_brief_submit")
+    @single_post_error_guard()
+    def handle_legacy_morning_brief_submit(ack, body, client):
+        """Handle legacy morning brief submission callback id."""
+        ack()
         handler.handle_submission(body, client)
 
     @app.view("morning_brief_empty")

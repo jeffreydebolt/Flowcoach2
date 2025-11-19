@@ -20,7 +20,7 @@ class Task:
 def select_morning_brief_tasks(
     tasks: List[Task],
     today: date,
-    max_undated_p1: int = 15,  # Increased from 5 to show more tasks
+    max_undated_p1: int = 5,
 ) -> Dict[str, List[Task]]:
     """
     Split all tasks into four lists for the Morning Brief modal:

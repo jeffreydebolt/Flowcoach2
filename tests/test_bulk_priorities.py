@@ -1,9 +1,9 @@
 """Tests for bulk priority review functionality (Phase 2.0)."""
 
-import pytest
 from unittest.mock import Mock, patch
+
 from apps.server.slack.blocks import render_bulk_priority_list
-from handlers.message_handlers import _is_bulk_priority_intent, _handle_bulk_priority_review
+from handlers.message_handlers import _handle_bulk_priority_review, _is_bulk_priority_intent
 
 
 class TestBulkPriorities:

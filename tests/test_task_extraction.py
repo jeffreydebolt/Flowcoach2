@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Test task extraction logic"""
 
-import sys
 import os
+import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.task_agent import TaskAgent
 from config import get_config
+from core.task_agent import TaskAgent
 
 # Create a minimal task agent for testing
 agent = TaskAgent(get_config(), {})
@@ -21,7 +22,7 @@ print("-" * 50)
 import re
 
 # Test the single line pattern
-single_line_pattern = r'\d+\)\s*([^0-9]+?)(?=\d+\)|$)'
+single_line_pattern = r"\d+\)\s*([^0-9]+?)(?=\d+\)|$)"
 matches = re.findall(single_line_pattern, test_message, re.IGNORECASE)
 print(f"Regex matches: {matches}")
 print(f"Number of matches: {len(matches)}")

@@ -3,6 +3,7 @@
 
 import socket
 import ssl
+
 import requests
 
 
@@ -45,7 +46,7 @@ def test_connectivity():
         context = ssl.create_default_context()
         with socket.create_connection(("slack.com", 443), timeout=5) as sock:
             with context.wrap_socket(sock, server_hostname="slack.com") as ssock:
-                print(f"✓ SSL/TLS to slack.com works")
+                print("✓ SSL/TLS to slack.com works")
     except Exception as e:
         print(f"✗ SSL/TLS test failed: {e}")
 

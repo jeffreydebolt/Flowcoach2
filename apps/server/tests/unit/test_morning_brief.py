@@ -1,10 +1,8 @@
 """Unit tests for morning brief modal and planning logic."""
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import date, datetime
+from unittest.mock import Mock, patch
 
-from apps.server.core.planning import TaskSelector, PlanningService, TaskCandidate
+from apps.server.core.planning import PlanningService, TaskCandidate, TaskSelector
 from apps.server.slack.modals.morning_brief import MorningBriefModal
 
 

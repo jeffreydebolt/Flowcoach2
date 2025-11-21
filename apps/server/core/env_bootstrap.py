@@ -1,7 +1,7 @@
 """Environment variable bootstrap for FlowCoach development."""
 
-import os
 import logging
+import os
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -17,10 +17,10 @@ def bootstrap_env():
     - .env file exists in repository root
     """
     # Check if auto-loading is enabled
-    fc_env = os.getenv('FC_ENV', 'local').lower()
-    auto_load = os.getenv('FC_AUTO_LOAD_ENV', '0') == '1'
+    fc_env = os.getenv("FC_ENV", "local").lower()
+    auto_load = os.getenv("FC_AUTO_LOAD_ENV", "0") == "1"
 
-    if fc_env != 'local' and not auto_load:
+    if fc_env != "local" and not auto_load:
         logger.debug("EnvBootstrap: skipped (not local mode)")
         return
 
@@ -37,18 +37,18 @@ def bootstrap_env():
 
     # Walk up directories to find the repository root (where .env should be)
     for parent in [current_dir] + list(current_dir.parents):
-        if (parent / '.env').exists():
+        if (parent / ".env").exists():
             repo_root = parent
             break
         # Also check for git root as fallback
-        if (parent / '.git').exists() and not repo_root:
+        if (parent / ".git").exists() and not repo_root:
             repo_root = parent
 
     if not repo_root:
         logger.debug("EnvBootstrap: skipped (no .env found)")
         return
 
-    env_path = repo_root / '.env'
+    env_path = repo_root / ".env"
 
     if not env_path.exists():
         logger.debug("EnvBootstrap: skipped (no .env found)")
@@ -63,5 +63,5 @@ def bootstrap_env():
 
 
 # Auto-bootstrap on import in development
-if __name__ != '__main__':
+if __name__ != "__main__":
     bootstrap_env()

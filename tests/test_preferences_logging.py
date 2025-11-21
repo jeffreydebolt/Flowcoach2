@@ -1,8 +1,7 @@
 """Tests for preferences logging level changes."""
 
-import pytest
-import logging
 from unittest.mock import Mock, patch
+
 from apps.server.core.prefs import PreferencesStore, get_user_prefs_or_defaults
 
 

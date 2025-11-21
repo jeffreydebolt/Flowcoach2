@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import os
 import sys
 
 sys.path.append(".")
@@ -10,9 +9,9 @@ from apps.server.core.env_bootstrap import bootstrap_env
 
 bootstrap_env()
 
-from apps.server.integrations.todoist_client import TodoistClient
+
 from apps.server.core.planning import PlanningService
-from datetime import date
+from apps.server.integrations.todoist_client import TodoistClient
 
 
 def test_morning_brief_logic():
@@ -64,7 +63,7 @@ def test_morning_brief_logic():
 
             # Check the first P1 task
             sample_task = p1_tasks[0]
-            print(f"\n   Sample P1 task:")
+            print("\n   Sample P1 task:")
             print(f"   - Content: {sample_task['content']}")
             print(f"   - Priority: {sample_task.get('priority')}")
             print(f"   - Labels: {sample_task.get('labels', [])}")

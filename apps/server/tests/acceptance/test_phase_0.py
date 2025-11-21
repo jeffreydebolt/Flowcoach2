@@ -1,13 +1,10 @@
 """Acceptance tests for FlowCoach Phase 0 - Interview + Prefs + Home Tab."""
 
-import pytest
 import json
-from unittest.mock import Mock, patch, MagicMock
-from datetime import time
+from unittest.mock import Mock, patch
 
-from apps.server.core.prefs import WorkPreferences, EnergyWindow, PreferencesStore
+from apps.server.core.prefs import EnergyWindow, PreferencesStore, WorkPreferences
 from apps.server.platform.feature_flags import FlowCoachFlag, clear_all_overrides, set_override
-from apps.server.integrations.todoist_client import TodoistClient
 from apps.server.slack.home import HomeTab
 from apps.server.slack.modals.interview import InterviewModal
 
@@ -203,7 +200,7 @@ class TestFeatureFlags:
 
     def test_feature_flags_default_off(self):
         """Test that all FlowCoach flags default to OFF."""
-        from apps.server.platform.feature_flags import is_enabled, FlowCoachFlag
+        from apps.server.platform.feature_flags import FlowCoachFlag, is_enabled
 
         # Test all Phase 0 flags are off by default
         assert not is_enabled(FlowCoachFlag.FC_INTERVIEW_MODAL_V1)
@@ -219,10 +216,10 @@ class TestFeatureFlags:
     def test_feature_flag_memory_overrides(self):
         """Test that memory overrides work for testing."""
         from apps.server.platform.feature_flags import (
+            FlowCoachFlag,
+            clear_override,
             is_enabled,
             set_override,
-            clear_override,
-            FlowCoachFlag,
         )
 
         # Initially off

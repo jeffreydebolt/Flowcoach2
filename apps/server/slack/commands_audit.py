@@ -1,20 +1,19 @@
 """Slack commands for project audit functionality."""
 
-import os
 import json
 import logging
-from typing import Dict, List, Any
+import os
 from datetime import datetime
+from typing import Any
 
 from slack_bolt import App
 from slack_sdk import WebClient
-from slack_sdk.errors import SlackApiError
 
-from ..core.audit import ProjectAuditor, ProjectAuditItem
-from ..core.momentum import MomentumTracker
-from ..todoist.client import TodoistClient
+from ..core.audit import ProjectAuditItem, ProjectAuditor
 from ..core.errors import log_event
 from ..core.feature_flags import FeatureFlag, is_feature_enabled
+from ..core.momentum import MomentumTracker
+from ..todoist.client import TodoistClient
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +28,7 @@ class AuditCommandHandler:
 
         # Load message templates
         template_path = os.path.join(os.path.dirname(__file__), "..", "templates", "audit.json")
-        with open(template_path, "r") as f:
+        with open(template_path) as f:
             self.templates = json.load(f)
 
     def handle_audit_command(self, ack, command, client: WebClient):
@@ -263,8 +262,8 @@ class AuditCommandHandler:
             )
 
     def _build_audit_message(
-        self, categorized: Dict[str, List[ProjectAuditItem]], summary: Dict[str, Any]
-    ) -> List[Dict]:
+        self, categorized: dict[str, list[ProjectAuditItem]], summary: dict[str, Any]
+    ) -> list[dict]:
         """Build Slack message blocks for audit report."""
         blocks = []
 
@@ -339,7 +338,7 @@ class AuditCommandHandler:
 
         return blocks
 
-    def _build_project_block(self, project: ProjectAuditItem) -> Dict:
+    def _build_project_block(self, project: ProjectAuditItem) -> dict:
         """Build a single project block with actions."""
         # Status emoji
         if project.momentum_score >= 80:

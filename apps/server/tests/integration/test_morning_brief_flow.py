@@ -1,10 +1,11 @@
 """Integration tests for morning brief flow."""
 
-import unittest
 import os
-from unittest.mock import Mock, patch, MagicMock
-from apps.server.jobs.morning_brief import MorningBriefJob
+import unittest
+from unittest.mock import MagicMock, Mock, patch
+
 from apps.server.core.sorting import TaskSorter
+from apps.server.jobs.morning_brief import MorningBriefJob
 from apps.server.slack.messages import MessageBuilder
 
 
@@ -14,11 +15,14 @@ class TestMorningBriefFlow(unittest.TestCase):
     def setUp(self):
         """Set up test environment."""
         # Mock environment variables
-        self.env_patcher = patch.dict(os.environ, {
-            'SLACK_BOT_TOKEN': 'xoxb-test-token',
-            'TODOIST_API_TOKEN': 'test-todoist-token',
-            'FC_ACTIVE_USERS': 'U123456',
-        })
+        self.env_patcher = patch.dict(
+            os.environ,
+            {
+                "SLACK_BOT_TOKEN": "xoxb-test-token",
+                "TODOIST_API_TOKEN": "test-todoist-token",
+                "FC_ACTIVE_USERS": "U123456",
+            },
+        )
         self.env_patcher.start()
 
         # Create mocks
@@ -30,12 +34,13 @@ class TestMorningBriefFlow(unittest.TestCase):
         """Clean up test environment."""
         self.env_patcher.stop()
 
-    @patch('apps.server.jobs.morning_brief.WebClient')
-    @patch('apps.server.jobs.morning_brief.TodoistClient')
-    @patch('apps.server.jobs.morning_brief.get_dal')
-    @patch('apps.server.jobs.morning_brief.MessageBuilder')
-    def test_successful_morning_brief_send(self, mock_builder_class, mock_dal_func,
-                                         mock_todoist_class, mock_slack_class):
+    @patch("apps.server.jobs.morning_brief.WebClient")
+    @patch("apps.server.jobs.morning_brief.TodoistClient")
+    @patch("apps.server.jobs.morning_brief.get_dal")
+    @patch("apps.server.jobs.morning_brief.MessageBuilder")
+    def test_successful_morning_brief_send(
+        self, mock_builder_class, mock_dal_func, mock_todoist_class, mock_slack_class
+    ):
         """Test successful morning brief sending."""
         # Setup mocks
         mock_slack_class.return_value = self.mock_slack_client
@@ -58,7 +63,9 @@ class TestMorningBriefFlow(unittest.TestCase):
         self.mock_dal.weekly_outcomes.get_current_outcomes.return_value = mock_outcomes
         self.mock_todoist_client.get_tasks.return_value = mock_tasks
 
-        mock_message = {"blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": "Morning!"}}]}
+        mock_message = {
+            "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": "Morning!"}}]
+        }
         mock_builder.build_morning_brief.return_value = mock_message
 
         # Slack API response
@@ -79,12 +86,13 @@ class TestMorningBriefFlow(unittest.TestCase):
         self.mock_dal.morning_brief.record_surfaced_tasks.assert_called_once()
         self.mock_slack_client.chat_postMessage.assert_called_once()
 
-    @patch('apps.server.jobs.morning_brief.WebClient')
-    @patch('apps.server.jobs.morning_brief.TodoistClient')
-    @patch('apps.server.jobs.morning_brief.get_dal')
-    @patch('apps.server.jobs.morning_brief.MessageBuilder')
-    def test_morning_brief_no_tasks(self, mock_builder_class, mock_dal_func,
-                                   mock_todoist_class, mock_slack_class):
+    @patch("apps.server.jobs.morning_brief.WebClient")
+    @patch("apps.server.jobs.morning_brief.TodoistClient")
+    @patch("apps.server.jobs.morning_brief.get_dal")
+    @patch("apps.server.jobs.morning_brief.MessageBuilder")
+    def test_morning_brief_no_tasks(
+        self, mock_builder_class, mock_dal_func, mock_todoist_class, mock_slack_class
+    ):
         """Test morning brief when no tasks available."""
         # Setup mocks
         mock_slack_class.return_value = self.mock_slack_client
@@ -99,7 +107,9 @@ class TestMorningBriefFlow(unittest.TestCase):
         self.mock_todoist_client.get_tasks.return_value = None
 
         # Mock fallback message
-        mock_fallback = {"blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": "No tasks!"}}]}
+        mock_fallback = {
+            "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": "No tasks!"}}]
+        }
         mock_builder.build_fallback_message.return_value = mock_fallback
 
         self.mock_slack_client.users_info.return_value = {"user": {"tz": "America/Denver"}}
@@ -115,9 +125,9 @@ class TestMorningBriefFlow(unittest.TestCase):
         mock_builder.build_fallback_message.assert_called_once_with("no_tasks")
         self.mock_slack_client.chat_postMessage.assert_called_once()
 
-    @patch('apps.server.jobs.morning_brief.WebClient')
-    @patch('apps.server.jobs.morning_brief.TodoistClient')
-    @patch('apps.server.jobs.morning_brief.get_dal')
+    @patch("apps.server.jobs.morning_brief.WebClient")
+    @patch("apps.server.jobs.morning_brief.TodoistClient")
+    @patch("apps.server.jobs.morning_brief.get_dal")
     def test_morning_brief_slack_error(self, mock_dal_func, mock_todoist_class, mock_slack_class):
         """Test morning brief when Slack API fails."""
         # Setup mocks
@@ -127,7 +137,10 @@ class TestMorningBriefFlow(unittest.TestCase):
 
         # Configure Slack to fail
         from slack_sdk.errors import SlackApiError
-        self.mock_slack_client.chat_postMessage.side_effect = SlackApiError("API Error", {"error": "channel_not_found"})
+
+        self.mock_slack_client.chat_postMessage.side_effect = SlackApiError(
+            "API Error", {"error": "channel_not_found"}
+        )
         self.mock_slack_client.users_info.return_value = {"user": {"tz": "America/Denver"}}
 
         # Mock other services working
@@ -158,8 +171,8 @@ class TestMorningBriefFlow(unittest.TestCase):
         # Task 2 should be first due to weekly outcome match
         self.assertEqual(sorted_tasks[0]["id"], "2")
 
-    @patch('apps.server.slack.messages.Path')
-    @patch('builtins.open')
+    @patch("apps.server.slack.messages.Path")
+    @patch("builtins.open")
     def test_message_building_integration(self, mock_open_func, mock_path):
         """Test message building with realistic data."""
         # Mock file system
@@ -183,7 +196,7 @@ class TestMorningBriefFlow(unittest.TestCase):
 
         # Configure mock to return different content for different files
         def mock_open_side_effect(*args, **kwargs):
-            if 'phrases.json' in str(args[0]):
+            if "phrases.json" in str(args[0]):
                 return MagicMock(read=Mock(return_value=phrases))
             else:
                 return MagicMock(read=Mock(return_value=template))
@@ -194,7 +207,12 @@ class TestMorningBriefFlow(unittest.TestCase):
         builder = MessageBuilder()
 
         tasks = [
-            {"id": "1", "content": "Important meeting", "labels": ["t_30plus"], "due": {"date": "2023-01-01"}},
+            {
+                "id": "1",
+                "content": "Important meeting",
+                "labels": ["t_30plus"],
+                "due": {"date": "2023-01-01"},
+            },
         ]
 
         message = builder.build_morning_brief(tasks)
@@ -204,5 +222,5 @@ class TestMorningBriefFlow(unittest.TestCase):
         self.assertTrue(len(message["blocks"]) > 0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

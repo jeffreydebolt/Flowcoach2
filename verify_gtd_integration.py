@@ -9,7 +9,6 @@ from core.task_agent import TaskAgent
 
 # Check if the protection is imported
 try:
-    from core.gtd_protection import gtd_protector
 
     print("✓ GTD Protection module found")
 except:

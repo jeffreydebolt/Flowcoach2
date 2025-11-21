@@ -6,13 +6,14 @@ and initializes the core agents.
 
 import logging
 
-from .todoist_service import TodoistService
-from .calendar_service import CalendarService
-from .openai_service import OpenAIService
-from .claude_service import ClaudeService
-from core.task_agent import TaskAgent
 from core.calendar_agent import CalendarAgent
 from core.communication_agent import CommunicationAgent
+from core.task_agent import TaskAgent
+
+from .calendar_service import CalendarService
+from .claude_service import ClaudeService
+from .openai_service import OpenAIService
+from .todoist_service import TodoistService
 
 logger = logging.getLogger(__name__)
 

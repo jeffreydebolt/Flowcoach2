@@ -5,7 +5,6 @@ FlowCoach Setup Verification Script
 Checks if development and production environments are properly configured.
 """
 
-import os
 import sys
 from pathlib import Path
 
@@ -38,13 +37,13 @@ def check_env_vars(env_file, environment):
     ]
 
     found_vars = []
-    with open(env_file, "r") as f:
+    with open(env_file) as f:
         content = f.read()
         for var in required_vars:
             if (
                 f"{var}=" in content
-                and not f"{var}=xoxb-YOUR" in content
-                and not f"{var}=xapp-YOUR" in content
+                and f"{var}=xoxb-YOUR" not in content
+                and f"{var}=xapp-YOUR" not in content
             ):
                 found_vars.append(var)
 
@@ -76,30 +75,30 @@ def main():
     dev_ok = check_env_vars(".env.dev", "development")
 
     # Check databases
-    print(f"\n🗄️  Databases:")
+    print("\n🗄️  Databases:")
     prod_db = check_file("flowcoach.db", "Production database (flowcoach.db)")
     dev_db = check_file("flowcoach_dev.db", "Development database (flowcoach_dev.db)")
 
     # Summary
-    print(f"\n📊 Setup Status:")
+    print("\n📊 Setup Status:")
     print(f"  Core files: {'✅' if files_ok else '❌'}")
     print(f"  Production config: {'✅' if prod_ok else '❌'}")
     print(f"  Development config: {'✅' if dev_ok else '❌'}")
 
     if prod_ok and dev_ok and files_ok:
-        print(f"\n🎉 Setup Complete!")
-        print(f"  • Development: python3 run_dev.py")
-        print(f"  • Production:  python3 run_prod.py")
+        print("\n🎉 Setup Complete!")
+        print("  • Development: python3 run_dev.py")
+        print("  • Production:  python3 run_prod.py")
         return 0
     else:
-        print(f"\n⚠️  Setup Issues Found:")
+        print("\n⚠️  Setup Issues Found:")
         if not files_ok:
-            print(f"  • Missing core files")
+            print("  • Missing core files")
         if not prod_ok:
-            print(f"  • Production config incomplete (.env)")
+            print("  • Production config incomplete (.env)")
         if not dev_ok:
-            print(f"  • Development config incomplete (.env.dev)")
-            print(f"  • See SLACK_DEV_SETUP.md for instructions")
+            print("  • Development config incomplete (.env.dev)")
+            print("  • See SLACK_DEV_SETUP.md for instructions")
         return 1
 
 

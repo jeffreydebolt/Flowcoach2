@@ -2,14 +2,16 @@
 """Debug Socket Mode connection issues."""
 
 import os
+
 from apps.server.core.env_bootstrap import bootstrap_env
 
 bootstrap_env()
 
-from slack_sdk import WebClient
+import logging
+
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
-import logging
+from slack_sdk import WebClient
 
 # Set up detailed logging
 logging.basicConfig(level=logging.DEBUG)

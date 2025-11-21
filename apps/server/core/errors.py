@@ -1,15 +1,16 @@
 """Error handling and resilience utilities."""
 
 import functools
-import time
-import logging
-from typing import TypeVar, Callable, Any, Optional
 import json
+import logging
+import time
+from collections.abc import Callable
 from datetime import datetime
+from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class FlowCoachError(Exception):
@@ -97,7 +98,7 @@ def retry(
     max_attempts: int = 3,
     delay: float = 1.0,
     backoff: float = 2.0,
-    exceptions: tuple = (Exception,)
+    exceptions: tuple = (Exception,),
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """
     Retry decorator with exponential backoff.
@@ -108,10 +109,11 @@ def retry(
         backoff: Multiplier for delay after each retry
         exceptions: Tuple of exceptions to catch
     """
+
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
-            last_exception: Optional[Exception] = None
+            last_exception: Exception | None = None
             current_delay = delay
 
             for attempt in range(max_attempts):
@@ -139,13 +141,14 @@ def retry(
                     "error": str(last_exception),
                     "attempts": max_attempts,
                     "args": str(args)[:200],  # Truncate for safety
-                    "kwargs": str(kwargs)[:200]
-                }
+                    "kwargs": str(kwargs)[:200],
+                },
             )
 
             raise last_exception
 
         return wrapper
+
     return decorator
 
 
@@ -155,7 +158,7 @@ def log_event(severity: str, action: str, payload: dict) -> None:
         "timestamp": datetime.utcnow().isoformat(),
         "severity": severity,
         "action": action,
-        "payload": payload
+        "payload": payload,
     }
     # For now, just log to file. In production, this could go to database or monitoring service
     logger.info(f"EVENT: {json.dumps(event)}")
@@ -208,61 +211,57 @@ def get_slack_fallback_message(error: Exception) -> dict:
     if isinstance(error, FlowCoachError):
         error_text = format_user_error(error)
     else:
-        error_text = f"❌ Something went wrong: {str(error)}\n💡 Check your configuration and try again"
+        error_text = (
+            f"❌ Something went wrong: {str(error)}\n💡 Check your configuration and try again"
+        )
 
     return {
         "blocks": [
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": error_text
-                }
-            },
+            {"type": "section", "text": {"type": "mrkdwn", "text": error_text}},
             {
                 "type": "context",
                 "elements": [
                     {
                         "type": "mrkdwn",
-                        "text": "If this problem persists, check the logs for more details"
+                        "text": "If this problem persists, check the logs for more details",
                     }
-                ]
-            }
+                ],
+            },
         ]
     }
 
 
 def handle_todoist_error(func: Callable[..., T]) -> Callable[..., T]:
     """Decorator to handle Todoist API errors gracefully."""
+
     @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Optional[T]:
+    def wrapper(*args: Any, **kwargs: Any) -> T | None:
         try:
             return func(*args, **kwargs)
         except Exception as e:
             logger.error(f"Todoist error in {func.__name__}: {str(e)}")
             log_event(
-                severity="error",
-                action=f"todoist_{func.__name__}_error",
-                payload={"error": str(e)}
+                severity="error", action=f"todoist_{func.__name__}_error", payload={"error": str(e)}
             )
             # Return None to indicate failure - caller should handle fallback
             return None
+
     return wrapper
 
 
 def handle_slack_error(func: Callable[..., T]) -> Callable[..., T]:
     """Decorator to handle Slack API errors gracefully."""
+
     @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Optional[T]:
+    def wrapper(*args: Any, **kwargs: Any) -> T | None:
         try:
             return func(*args, **kwargs)
         except Exception as e:
             logger.error(f"Slack error in {func.__name__}: {str(e)}")
             log_event(
-                severity="error",
-                action=f"slack_{func.__name__}_error",
-                payload={"error": str(e)}
+                severity="error", action=f"slack_{func.__name__}_error", payload={"error": str(e)}
             )
             # Return None to indicate failure - caller should handle fallback
             return None
+
     return wrapper

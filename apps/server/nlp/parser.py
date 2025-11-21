@@ -2,7 +2,6 @@
 
 import re
 from dataclasses import dataclass
-from typing import Optional, Tuple
 
 
 @dataclass
@@ -10,8 +9,8 @@ class ParsedTask:
     """Parsed task with extracted time and priority."""
 
     content: str
-    time_label: Optional[str] = None  # "2min" | "10min" | "30+min"
-    user_priority: Optional[int] = None  # 1-4 (P1=highest)
+    time_label: str | None = None  # "2min" | "10min" | "30+min"
+    user_priority: int | None = None  # 1-4 (P1=highest)
 
 
 def parse_task_input(raw_text: str) -> ParsedTask:
@@ -109,7 +108,7 @@ def _split_by_separators(text: str) -> list[str]:
     return [part.strip() for part in parts if part.strip()]
 
 
-def _detect_time_token(text: str) -> Optional[str]:
+def _detect_time_token(text: str) -> str | None:
     """
     Detect and normalize time tokens.
 
@@ -134,7 +133,7 @@ def _detect_time_token(text: str) -> Optional[str]:
     return None
 
 
-def _detect_priority_token(text: str) -> Optional[int]:
+def _detect_priority_token(text: str) -> int | None:
     """
     Detect priority tokens and return human priority (1-4).
 

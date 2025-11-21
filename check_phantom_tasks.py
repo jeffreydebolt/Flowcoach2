@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Check for phantom tasks in Todoist."""
 
-import os
 import sys
 
 sys.path.append(".")
@@ -34,7 +33,7 @@ def check_phantom_tasks():
         for phantom in phantom_phrases:
             if phantom in content:
                 found_phantoms.append(task)
-                print(f"\n🚨 FOUND PHANTOM TASK:")
+                print("\n🚨 FOUND PHANTOM TASK:")
                 print(f"   ID: {task['id']}")
                 print(f"   Content: {content}")
                 print(f"   Created: {task['created_at']}")

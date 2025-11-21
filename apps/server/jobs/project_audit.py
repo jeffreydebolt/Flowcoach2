@@ -1,14 +1,13 @@
 """Scheduled job for weekly project audit."""
 
-import os
 import logging
+import os
 from datetime import datetime
 
 from slack_sdk import WebClient
-from slack_sdk.errors import SlackApiError
 
-from ..slack.commands_audit import AuditCommandHandler
 from ..core.errors import log_event
+from ..slack.commands_audit import AuditCommandHandler
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +16,7 @@ class ProjectAuditJob:
     """Scheduled job to send weekly project audit."""
 
     def __init__(self):
-        self.slack_token = os.getenv('SLACK_BOT_TOKEN')
+        self.slack_token = os.getenv("SLACK_BOT_TOKEN")
         if not self.slack_token:
             raise ValueError("SLACK_BOT_TOKEN not found in environment")
 
@@ -25,7 +24,7 @@ class ProjectAuditJob:
         self.audit_handler = AuditCommandHandler()
 
         # Get active users
-        self.active_users = os.getenv('FC_ACTIVE_USERS', '').split(',')
+        self.active_users = os.getenv("FC_ACTIVE_USERS", "").split(",")
         self.active_users = [user.strip() for user in self.active_users if user.strip()]
 
     def run(self) -> bool:
@@ -55,11 +54,8 @@ class ProjectAuditJob:
                     log_event(
                         severity="error",
                         action="audit_job_user_failed",
-                        payload={
-                            "user_id": user_id,
-                            "error": str(user_error)
-                        },
-                        user_id=user_id
+                        payload={"user_id": user_id, "error": str(user_error)},
+                        user_id=user_id,
                     )
 
             # Log job completion
@@ -69,11 +65,13 @@ class ProjectAuditJob:
                 payload={
                     "users_processed": len(self.active_users),
                     "successful_audits": success_count,
-                    "timestamp": datetime.now().isoformat()
-                }
+                    "timestamp": datetime.now().isoformat(),
+                },
             )
 
-            logger.info(f"Weekly audit job completed: {success_count}/{len(self.active_users)} users")
+            logger.info(
+                f"Weekly audit job completed: {success_count}/{len(self.active_users)} users"
+            )
             return True
 
         except Exception as e:
@@ -82,10 +80,7 @@ class ProjectAuditJob:
             log_event(
                 severity="error",
                 action="audit_job_failed",
-                payload={
-                    "error": str(e),
-                    "timestamp": datetime.now().isoformat()
-                }
+                payload={"error": str(e), "timestamp": datetime.now().isoformat()},
             )
 
             return False
@@ -97,10 +92,10 @@ class ProjectAuditJob:
         # Use the audit handler to generate and send the audit
         # Create a mock command object for the handler
         mock_command = {
-            'user_id': user_id,
-            'channel_id': user_id,  # DM channel
-            'command': '/flow',
-            'text': 'audit'
+            "user_id": user_id,
+            "channel_id": user_id,  # DM channel
+            "command": "/flow",
+            "text": "audit",
         }
 
         # Mock ack function
@@ -119,10 +114,10 @@ class ProjectAuditJob:
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": ":calendar: *Weekly Project Audit*\n\nHere's your weekly project health check. Use the actions below to keep your projects moving!"
-                    }
+                        "text": ":calendar: *Weekly Project Audit*\n\nHere's your weekly project health check. Use the actions below to keep your projects moving!",
+                    },
                 }
-            ]
+            ],
         )
 
 
@@ -135,8 +130,7 @@ def run_weekly_audit_job() -> bool:
 if __name__ == "__main__":
     # Configure logging
     logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
     # Run the job

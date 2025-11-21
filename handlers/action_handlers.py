@@ -6,7 +6,6 @@ This module contains handlers for Slack interactive actions (e.g., button clicks
 
 import logging
 import re
-from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -638,7 +637,7 @@ def register_action_handlers(app, services):
 def _update_time_chip_message(client, channel_id, message_ts, task, selected_time, services):
     """Update message to reflect current time chip selection."""
     try:
-        from apps.server.slack.blocks import render_time_chips, render_priority_chips
+        from apps.server.slack.blocks import render_priority_chips, render_time_chips
 
         # Get current priority
         todoist_priority = task.get("priority", 2)
@@ -676,7 +675,7 @@ def _update_priority_chip_message(
 ):
     """Update message to reflect current priority chip selection."""
     try:
-        from apps.server.slack.blocks import render_time_chips, render_priority_chips
+        from apps.server.slack.blocks import render_priority_chips, render_time_chips
 
         # Get current time from labels
         time_labels = ["2min", "10min", "30+min"]

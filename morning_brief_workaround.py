@@ -13,9 +13,10 @@ from apps.server.core.env_bootstrap import bootstrap_env
 
 bootstrap_env()
 
-from apps.server.integrations.todoist_client import TodoistClient
-from apps.server.core.planning import PlanningService
 from slack_sdk import WebClient
+
+from apps.server.core.planning import PlanningService
+from apps.server.integrations.todoist_client import TodoistClient
 
 
 def send_morning_brief_message(user_id):

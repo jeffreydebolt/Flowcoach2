@@ -1,9 +1,8 @@
 """Integration tests for feature flags across the system."""
 
+import json
 import os
 import tempfile
-import json
-from datetime import datetime
 
 # Test imports
 from apps.server.core.feature_flags import FeatureFlag, get_feature_manager
@@ -50,7 +49,7 @@ def test_database_write_protection():
     manager.enable_flag(FeatureFlag.DATABASE_WRITES)
 
     # Test with database writes enabled (should work in memory/test mode)
-    result = tracker.update_project_momentum('test_project', is_deep_work=True)
+    result = tracker.update_project_momentum("test_project", is_deep_work=True)
     # Note: This might still return False if no actual database, but decorator should allow the call
     print(f"✓ Update with DB writes enabled: {result}")
 
@@ -58,7 +57,7 @@ def test_database_write_protection():
     manager.disable_flag(FeatureFlag.DATABASE_WRITES)
 
     # Test with database writes disabled (should return False)
-    result = tracker.update_project_momentum('test_project', is_deep_work=True)
+    result = tracker.update_project_momentum("test_project", is_deep_work=True)
     assert result == False
     print("✓ Database write protection active")
 
@@ -102,15 +101,16 @@ def test_feature_flag_persistence():
     print("Testing feature flag persistence...")
 
     # Create temporary config file
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         temp_config_path = f.name
 
     try:
         # Set config path
-        os.environ['FC_FEATURE_CONFIG_PATH'] = temp_config_path
+        os.environ["FC_FEATURE_CONFIG_PATH"] = temp_config_path
 
         # Create new manager to use the temp config
         from apps.server.core.feature_flags import FeatureFlagManager
+
         test_manager = FeatureFlagManager()
 
         # Enable a flag with persistence
@@ -120,16 +120,16 @@ def test_feature_flag_persistence():
         assert os.path.exists(temp_config_path)
 
         # Check config file contents
-        with open(temp_config_path, 'r') as f:
+        with open(temp_config_path) as f:
             config = json.load(f)
 
-        assert config.get('ai_suggestions') == True
+        assert config.get("ai_suggestions") == True
         print("✓ Feature flag persistence works")
 
     finally:
         # Cleanup
-        if 'FC_FEATURE_CONFIG_PATH' in os.environ:
-            del os.environ['FC_FEATURE_CONFIG_PATH']
+        if "FC_FEATURE_CONFIG_PATH" in os.environ:
+            del os.environ["FC_FEATURE_CONFIG_PATH"]
         if os.path.exists(temp_config_path):
             os.remove(temp_config_path)
 
@@ -142,7 +142,7 @@ def test_health_check_integration():
     health_status = health_checker.get_health_status()
 
     # Check that feature flags are included
-    assert hasattr(health_status, 'feature_flags')
+    assert hasattr(health_status, "feature_flags")
     assert isinstance(health_status.feature_flags, dict)
     assert len(health_status.feature_flags) > 0
 
@@ -150,9 +150,9 @@ def test_health_check_integration():
     manager = get_feature_manager()
     safety_status = manager.get_safety_status()
 
-    assert 'emergency_mode' in safety_status
-    assert 'database_writes_enabled' in safety_status
-    assert 'slack_commands_enabled' in safety_status
+    assert "emergency_mode" in safety_status
+    assert "database_writes_enabled" in safety_status
+    assert "slack_commands_enabled" in safety_status
 
     print("✓ Health check includes feature flags")
 
@@ -162,11 +162,12 @@ def test_environment_variable_override():
     print("Testing environment variable override...")
 
     # Set environment variable
-    os.environ['FC_FEATURE_AI_SUGGESTIONS'] = 'true'
+    os.environ["FC_FEATURE_AI_SUGGESTIONS"] = "true"
 
     try:
         # Create new manager to pick up env var
         from apps.server.core.feature_flags import FeatureFlagManager
+
         test_manager = FeatureFlagManager()
 
         # Check that AI suggestions is enabled due to env var
@@ -175,8 +176,8 @@ def test_environment_variable_override():
 
     finally:
         # Cleanup
-        if 'FC_FEATURE_AI_SUGGESTIONS' in os.environ:
-            del os.environ['FC_FEATURE_AI_SUGGESTIONS']
+        if "FC_FEATURE_AI_SUGGESTIONS" in os.environ:
+            del os.environ["FC_FEATURE_AI_SUGGESTIONS"]
 
 
 def run_all_tests():
@@ -218,6 +219,7 @@ def run_all_tests():
 if __name__ == "__main__":
     # Bootstrap environment
     from apps.server.core.env_bootstrap import bootstrap_env
+
     bootstrap_env()
 
     success = run_all_tests()

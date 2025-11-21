@@ -1,7 +1,8 @@
 """Slack middleware for retry handling and deduplication."""
 
 import logging
-from typing import Dict, Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ def drop_slack_retries_middleware(logger: logging.Logger):
         Middleware function for Slack Bolt
     """
 
-    def middleware(body: Dict[str, Any], next: Callable[[], None]) -> None:
+    def middleware(body: dict[str, Any], next: Callable[[], None]) -> None:
         """Check for Slack retry header and drop if present."""
         # Get headers from the request context
         headers = body.get("headers", {})
@@ -49,9 +50,9 @@ class DeduplicationMiddleware:
             cache_size: Maximum number of event IDs to cache
         """
         self.cache_size = cache_size
-        self.processed_events: Dict[str, bool] = {}
+        self.processed_events: dict[str, bool] = {}
 
-    def __call__(self, body: Dict[str, Any], next: Callable[[], None]) -> None:
+    def __call__(self, body: dict[str, Any], next: Callable[[], None]) -> None:
         """Check if event was already processed."""
         # Extract event ID or action ID
         event_id = self._extract_event_id(body)
@@ -74,7 +75,7 @@ class DeduplicationMiddleware:
         # Process the event
         next()
 
-    def _extract_event_id(self, body: Dict[str, Any]) -> Optional[str]:
+    def _extract_event_id(self, body: dict[str, Any]) -> str | None:
         """Extract a unique ID from the event body."""
         # For events
         if "event" in body and "event_id" in body:

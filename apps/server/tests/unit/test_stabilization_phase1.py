@@ -1,12 +1,9 @@
 """Unit tests for Phase 1 stabilization fixes."""
 
-import pytest
-import os
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
+from unittest.mock import Mock, patch
 
-from apps.server.integrations.todoist_client import TodoistClient
 from apps.server.core.prefs import PreferencesStore, WorkPreferences
+from apps.server.integrations.todoist_client import TodoistClient
 from apps.server.slack.home import HomeTab
 
 

@@ -1,12 +1,12 @@
 """Database models for FlowCoach."""
 
-from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any
-import sqlite3
 import json
 import logging
+import sqlite3
+from datetime import datetime, timedelta
+from typing import Any
 
-from ..core.db_retry import with_db_retry, DatabaseRetryMixin
+from ..core.db_retry import DatabaseRetryMixin, with_db_retry
 from .engine import DatabaseEngine
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,8 @@ class Database(DatabaseRetryMixin):
     def _init_db(self):
         """Initialize database schema."""
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS weekly_outcomes (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id TEXT NOT NULL,
@@ -33,9 +34,11 @@ class Database(DatabaseRetryMixin):
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(user_id, week_start)
                 )
-            """)
+            """
+            )
 
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS task_scores (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     task_id TEXT NOT NULL UNIQUE,
@@ -45,9 +48,11 @@ class Database(DatabaseRetryMixin):
                     total_score INTEGER NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
-            """)
+            """
+            )
 
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS events (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -56,9 +61,11 @@ class Database(DatabaseRetryMixin):
                     payload TEXT,
                     user_id TEXT
                 )
-            """)
+            """
+            )
 
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS morning_brief_tasks (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id TEXT NOT NULL,
@@ -67,7 +74,8 @@ class Database(DatabaseRetryMixin):
                     surfaced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     status TEXT DEFAULT 'surfaced'
                 )
-            """)
+            """
+            )
 
             conn.commit()
 
@@ -83,23 +91,21 @@ class WeeklyOutcomesModel:
         self.db_engine = db_engine
 
     @with_db_retry
-    def set_outcomes(self, user_id: str, outcomes: List[str], week_start: datetime) -> None:
+    def set_outcomes(self, user_id: str, outcomes: list[str], week_start: datetime) -> None:
         """Store or update weekly outcomes."""
         with self.db_engine.get_connection() as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT OR REPLACE INTO weekly_outcomes
                 (user_id, week_start, outcomes, updated_at)
                 VALUES (?, ?, ?, ?)
-            """, (
-                user_id,
-                week_start.date(),
-                json.dumps(outcomes),
-                datetime.now()
-            ))
+            """,
+                (user_id, week_start.date(), json.dumps(outcomes), datetime.now()),
+            )
             conn.commit()
 
     @with_db_retry
-    def get_current_outcomes(self, user_id: str) -> Optional[List[str]]:
+    def get_current_outcomes(self, user_id: str) -> list[str] | None:
         """Get current week's outcomes."""
         # Calculate start of current week (Monday)
         today = datetime.now()
@@ -107,10 +113,13 @@ class WeeklyOutcomesModel:
         week_start = today - timedelta(days=days_since_monday)
 
         with self.db_engine.get_connection() as conn:
-            cursor = conn.execute("""
+            cursor = conn.execute(
+                """
                 SELECT outcomes FROM weekly_outcomes
                 WHERE user_id = ? AND week_start = ?
-            """, (user_id, week_start.date()))
+            """,
+                (user_id, week_start.date()),
+            )
 
             row = cursor.fetchone()
             if row:
@@ -126,38 +135,39 @@ class TaskScoreModel:
 
     @with_db_retry
     def save_score(
-        self,
-        task_id: str,
-        impact: int,
-        urgency: int,
-        energy: str,
-        total_score: int
+        self, task_id: str, impact: int, urgency: int, energy: str, total_score: int
     ) -> None:
         """Save task scores."""
         with self.db_engine.get_connection() as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT OR REPLACE INTO task_scores
                 (task_id, impact, urgency, energy, total_score)
                 VALUES (?, ?, ?, ?, ?)
-            """, (task_id, impact, urgency, energy, total_score))
+            """,
+                (task_id, impact, urgency, energy, total_score),
+            )
             conn.commit()
 
     @with_db_retry
-    def get_score(self, task_id: str) -> Optional[Dict[str, Any]]:
+    def get_score(self, task_id: str) -> dict[str, Any] | None:
         """Get task scores."""
         with self.db_engine.get_connection() as conn:
-            cursor = conn.execute("""
+            cursor = conn.execute(
+                """
                 SELECT impact, urgency, energy, total_score
                 FROM task_scores WHERE task_id = ?
-            """, (task_id,))
+            """,
+                (task_id,),
+            )
 
             row = cursor.fetchone()
             if row:
                 return {
-                    'impact': row[0],
-                    'urgency': row[1],
-                    'energy': row[2],
-                    'total_score': row[3]
+                    "impact": row[0],
+                    "urgency": row[1],
+                    "energy": row[2],
+                    "total_score": row[3],
                 }
             return None
 
@@ -170,18 +180,17 @@ class EventLogger:
 
     @with_db_retry
     def log_event(
-        self,
-        severity: str,
-        action: str,
-        payload: Dict[str, Any],
-        user_id: Optional[str] = None
+        self, severity: str, action: str, payload: dict[str, Any], user_id: str | None = None
     ) -> None:
         """Log an event to database."""
         with self.db_engine.get_connection() as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO events (severity, action, payload, user_id)
                 VALUES (?, ?, ?, ?)
-            """, (severity, action, json.dumps(payload), user_id))
+            """,
+                (severity, action, json.dumps(payload), user_id),
+            )
             conn.commit()
 
 
@@ -192,31 +201,37 @@ class MorningBriefModel:
         self.db_engine = db_engine
 
     @with_db_retry
-    def record_surfaced_tasks(self, user_id: str, tasks: List[Dict[str, Any]]) -> None:
+    def record_surfaced_tasks(self, user_id: str, tasks: list[dict[str, Any]]) -> None:
         """Record which tasks were shown in morning brief."""
         with self.db_engine.get_connection() as conn:
             for task in tasks:
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT INTO morning_brief_tasks
                     (user_id, task_id, task_content)
                     VALUES (?, ?, ?)
-                """, (user_id, task['id'], task['content']))
+                """,
+                    (user_id, task["id"], task["content"]),
+                )
             conn.commit()
 
     @with_db_retry
-    def get_today_tasks(self, user_id: str) -> List[Dict[str, Any]]:
+    def get_today_tasks(self, user_id: str) -> list[dict[str, Any]]:
         """Get tasks surfaced today."""
         today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
         with self.db_engine.get_connection() as conn:
-            cursor = conn.execute("""
+            cursor = conn.execute(
+                """
                 SELECT task_id, task_content, status
                 FROM morning_brief_tasks
                 WHERE user_id = ? AND surfaced_at >= ?
-            """, (user_id, today_start))
+            """,
+                (user_id, today_start),
+            )
 
             return [
-                {'task_id': row[0], 'task_content': row[1], 'status': row[2]}
+                {"task_id": row[0], "task_content": row[1], "status": row[2]}
                 for row in cursor.fetchall()
             ]
 
@@ -224,9 +239,12 @@ class MorningBriefModel:
     def update_task_status(self, task_id: str, status: str) -> None:
         """Update status of a surfaced task."""
         with self.db_engine.get_connection() as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 UPDATE morning_brief_tasks
                 SET status = ?
                 WHERE task_id = ?
-            """, (status, task_id))
+            """,
+                (status, task_id),
+            )
             conn.commit()

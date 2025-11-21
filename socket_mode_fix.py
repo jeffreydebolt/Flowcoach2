@@ -3,13 +3,11 @@
 Socket Mode fix with connection management and proper cleanup.
 """
 
-import os
 import logging
-import time
+import os
 import signal
 import sys
-import threading
-from typing import Optional
+import time
 
 # Bootstrap environment
 from apps.server.core.env_bootstrap import bootstrap_env
@@ -26,7 +24,7 @@ class ManagedSocketModeHandler:
     def __init__(self, app: App, app_token: str):
         self.app = app
         self.app_token = app_token
-        self.handler: Optional[SocketModeHandler] = None
+        self.handler: SocketModeHandler | None = None
         self.running = False
         self.retry_count = 0
         self.max_retries = 3

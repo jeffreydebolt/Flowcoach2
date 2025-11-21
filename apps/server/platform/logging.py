@@ -3,12 +3,12 @@
 import json
 import logging
 import uuid
-from typing import Dict, Any, Optional
-from datetime import datetime, timezone
 from contextvars import ContextVar
+from datetime import UTC, datetime
+from typing import Any
 
 # Context variable for correlation ID
-correlation_id: ContextVar[Optional[str]] = ContextVar("correlation_id", default=None)
+correlation_id: ContextVar[str | None] = ContextVar("correlation_id", default=None)
 
 
 class StructuredFormatter(logging.Formatter):
@@ -18,7 +18,7 @@ class StructuredFormatter(logging.Formatter):
         """Format log record as JSON."""
         # Base log structure
         log_entry = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -54,9 +54,9 @@ class CorrelatedLogger:
         self,
         level: int,
         message: str,
-        extra_fields: Optional[Dict[str, Any]] = None,
-        user_id: Optional[str] = None,
-        action: Optional[str] = None,
+        extra_fields: dict[str, Any] | None = None,
+        user_id: str | None = None,
+        action: str | None = None,
     ) -> None:
         """Log message with additional context."""
         extra = {}
@@ -119,7 +119,7 @@ def set_correlation_id(corr_id: str) -> None:
     correlation_id.set(corr_id)
 
 
-def get_correlation_id() -> Optional[str]:
+def get_correlation_id() -> str | None:
     """Get current correlation ID."""
     return correlation_id.get()
 

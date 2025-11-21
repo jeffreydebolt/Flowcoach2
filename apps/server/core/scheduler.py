@@ -1,14 +1,15 @@
 """Task scheduling and deep work prompting."""
 
-import os
-from typing import List, Dict, Any, Optional
 import logging
+import os
+from typing import Any
+
 from slack_sdk import WebClient
 
-from ..todoist.client import TodoistClient
+from ..core.errors import log_event
 from ..core.scoring import TaskScorer
 from ..db.dal import get_dal
-from ..core.errors import log_event
+from ..todoist.client import TodoistClient
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ class DeepWorkScheduler:
     """Handle deep work task identification and scoring prompts."""
 
     def __init__(self):
-        self.slack_token = os.getenv('SLACK_BOT_TOKEN')
+        self.slack_token = os.getenv("SLACK_BOT_TOKEN")
         self.slack = WebClient(token=self.slack_token) if self.slack_token else None
         self.todoist = TodoistClient()
         self.dal = get_dal()
@@ -34,7 +35,7 @@ class DeepWorkScheduler:
         except Exception as e:
             logger.error(f"Failed to ensure deep work label: {e}")
 
-    def process_new_tasks(self, user_id: Optional[str] = None) -> None:
+    def process_new_tasks(self, user_id: str | None = None) -> None:
         """
         Process new tasks to identify and score deep work.
 
@@ -48,21 +49,21 @@ class DeepWorkScheduler:
                 return
 
             for task in tasks:
-                task_id = task['id']
+                task_id = task["id"]
 
                 # Skip if already scored
                 if self.dal.task_scores.get_score(task_id):
                     continue
 
                 # Check if it's deep work
-                duration = TaskScorer.extract_duration(task['content'])
-                is_deep = TaskScorer.is_deep_work(task['content'], duration)
+                duration = TaskScorer.extract_duration(task["content"])
+                is_deep = TaskScorer.is_deep_work(task["content"], duration)
 
                 if is_deep:
                     # Add deep work label
-                    labels = task.get('labels', [])
-                    if 't_30plus' not in labels:
-                        labels.append('t_30plus')
+                    labels = task.get("labels", [])
+                    if "t_30plus" not in labels:
+                        labels.append("t_30plus")
                         self.todoist.update_task(task_id, labels=labels)
                         logger.info(f"Added deep work label to task {task_id}")
 
@@ -74,7 +75,7 @@ class DeepWorkScheduler:
             logger.error(f"Error processing new tasks: {e}")
             log_event("error", "deep_work_processing_error", {"error": str(e)})
 
-    def _send_scoring_prompt(self, user_id: str, task: Dict[str, Any]) -> None:
+    def _send_scoring_prompt(self, user_id: str, task: dict[str, Any]) -> None:
         """Send scoring prompt for deep work task."""
         try:
             message = {
@@ -83,93 +84,81 @@ class DeepWorkScheduler:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": f"🎯 *Deep work task detected:*\n_{task['content']}_"
-                        }
+                            "text": f"🎯 *Deep work task detected:*\n_{task['content']}_",
+                        },
                     },
                     {
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "Please score this task:\n`Impact/Urgency/Energy`\n\nExample: `4/3/am`"
-                        }
+                            "text": "Please score this task:\n`Impact/Urgency/Energy`\n\nExample: `4/3/am`",
+                        },
                     },
                     {
                         "type": "context",
                         "elements": [
                             {
                                 "type": "mrkdwn",
-                                "text": "Impact: 1-5 (low to high)\nUrgency: 1-5 (low to high)\nEnergy: am or pm"
+                                "text": "Impact: 1-5 (low to high)\nUrgency: 1-5 (low to high)\nEnergy: am or pm",
                             }
-                        ]
-                    }
+                        ],
+                    },
                 ]
             }
 
             # Store task ID in metadata for response handling
-            message['metadata'] = {
-                'event_type': 'deep_work_score',
-                'task_id': task['id']
-            }
+            message["metadata"] = {"event_type": "deep_work_score", "task_id": task["id"]}
 
-            self.slack.chat_postMessage(
-                channel=user_id,
-                **message
-            )
+            self.slack.chat_postMessage(channel=user_id, **message)
 
-            log_event("info", "deep_work_prompt_sent", {
-                "user_id": user_id,
-                "task_id": task['id']
-            })
+            log_event("info", "deep_work_prompt_sent", {"user_id": user_id, "task_id": task["id"]})
 
         except Exception as e:
             logger.error(f"Failed to send scoring prompt: {e}")
 
-    def batch_process_unscored_tasks(self) -> Dict[str, Any]:
+    def batch_process_unscored_tasks(self) -> dict[str, Any]:
         """
         Batch process all unscored deep work tasks.
 
         Returns:
             Summary of processing results
         """
-        results = {
-            'processed': 0,
-            'labeled': 0,
-            'already_scored': 0,
-            'errors': 0
-        }
+        results = {"processed": 0, "labeled": 0, "already_scored": 0, "errors": 0}
 
         try:
             # Get all tasks with t_30plus label
-            tasks = self.todoist.get_tasks(label='t_30plus')
+            tasks = self.todoist.get_tasks(label="t_30plus")
             if not tasks:
                 return results
 
             for task in tasks:
-                results['processed'] += 1
-                task_id = task['id']
+                results["processed"] += 1
+                task_id = task["id"]
 
                 # Check if already scored
                 if self.dal.task_scores.get_score(task_id):
-                    results['already_scored'] += 1
+                    results["already_scored"] += 1
                     continue
 
                 # For batch processing, assign default scores based on content analysis
                 # In a real implementation, you might use AI to estimate these
                 impact = 3  # Default medium impact
                 urgency = 3  # Default medium urgency
-                energy = 'am'  # Default morning energy
+                energy = "am"  # Default morning energy
 
                 # Look for urgency indicators
-                content_lower = task['content'].lower()
-                if any(word in content_lower for word in ['urgent', 'asap', 'critical', 'deadline']):
+                content_lower = task["content"].lower()
+                if any(
+                    word in content_lower for word in ["urgent", "asap", "critical", "deadline"]
+                ):
                     urgency = 5
-                elif any(word in content_lower for word in ['important', 'priority']):
+                elif any(word in content_lower for word in ["important", "priority"]):
                     urgency = 4
 
                 # Look for impact indicators
-                if any(word in content_lower for word in ['strategic', 'key', 'major', 'critical']):
+                if any(word in content_lower for word in ["strategic", "key", "major", "critical"]):
                     impact = 5
-                elif any(word in content_lower for word in ['improve', 'enhance', 'optimize']):
+                elif any(word in content_lower for word in ["improve", "enhance", "optimize"]):
                     impact = 4
 
                 # Calculate total score
@@ -180,21 +169,25 @@ class DeepWorkScheduler:
 
                 # Update task labels
                 labels = TaskScorer.get_score_labels(impact, urgency, energy)
-                existing_labels = task.get('labels', [])
+                existing_labels = task.get("labels", [])
 
                 # Remove old score labels
-                existing_labels = [l for l in existing_labels if not (
-                    l.startswith('impact') or l.startswith('urgency') or l.startswith('energy_')
-                )]
+                existing_labels = [
+                    l
+                    for l in existing_labels
+                    if not (
+                        l.startswith("impact") or l.startswith("urgency") or l.startswith("energy_")
+                    )
+                ]
 
                 # Add new labels
                 all_labels = existing_labels + labels
                 self.todoist.update_task(task_id, labels=all_labels)
 
-                results['labeled'] += 1
+                results["labeled"] += 1
 
         except Exception as e:
             logger.error(f"Error in batch processing: {e}")
-            results['errors'] += 1
+            results["errors"] += 1
 
         return results

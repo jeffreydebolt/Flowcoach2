@@ -1,9 +1,8 @@
 """Natural language date parsing utilities."""
 
-import re
 import logging
+import re
 from datetime import datetime, timedelta
-from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -15,26 +14,32 @@ class DateParser:
         # Common date patterns
         self.patterns = [
             # MM/DD format
-            (r'(\d{1,2})/(\d{1,2})', self._parse_mm_dd),
+            (r"(\d{1,2})/(\d{1,2})", self._parse_mm_dd),
             # MM/DD/YY or MM/DD/YYYY
-            (r'(\d{1,2})/(\d{1,2})/(\d{2,4})', self._parse_mm_dd_yy),
+            (r"(\d{1,2})/(\d{1,2})/(\d{2,4})", self._parse_mm_dd_yy),
             # Month DD format (e.g., "Jan 15", "January 15")
-            (r'(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2})', self._parse_month_dd),
+            (
+                r"(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2})",
+                self._parse_month_dd,
+            ),
             # Relative dates
-            (r'in\s+(\d+)\s+(day|week|month)s?', self._parse_relative),
-            (r'(\d+)\s+(day|week|month)s?\s+from\s+now', self._parse_relative),
+            (r"in\s+(\d+)\s+(day|week|month)s?", self._parse_relative),
+            (r"(\d+)\s+(day|week|month)s?\s+from\s+now", self._parse_relative),
             # This/next week/month
-            (r'(this|next)\s+(week|month)', self._parse_this_next),
+            (r"(this|next)\s+(week|month)", self._parse_this_next),
             # Specific day names
-            (r'(monday|tuesday|wednesday|thursday|friday|saturday|sunday)', self._parse_day_name),
-            (r'next\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)', self._parse_next_day_name),
+            (r"(monday|tuesday|wednesday|thursday|friday|saturday|sunday)", self._parse_day_name),
+            (
+                r"next\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)",
+                self._parse_next_day_name,
+            ),
             # Common shortcuts
-            (r'tomorrow', lambda m: datetime.now() + timedelta(days=1)),
-            (r'(today|now)', lambda m: datetime.now()),
-            (r'end\s+of\s+(week|month)', self._parse_end_of),
+            (r"tomorrow", lambda m: datetime.now() + timedelta(days=1)),
+            (r"(today|now)", lambda m: datetime.now()),
+            (r"end\s+of\s+(week|month)", self._parse_end_of),
         ]
 
-    def parse(self, text: str) -> Optional[datetime]:
+    def parse(self, text: str) -> datetime | None:
         """
         Parse natural language date from text.
 
@@ -102,8 +107,18 @@ class DateParser:
 
         # Month name mapping
         months = {
-            'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
-            'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12
+            "jan": 1,
+            "feb": 2,
+            "mar": 3,
+            "apr": 4,
+            "may": 5,
+            "jun": 6,
+            "jul": 7,
+            "aug": 8,
+            "sep": 9,
+            "oct": 10,
+            "nov": 11,
+            "dec": 12,
         }
 
         month = months.get(month_str[:3])
@@ -127,11 +142,11 @@ class DateParser:
         amount = int(match.group(1))
         unit = match.group(2).lower()
 
-        if unit.startswith('day'):
+        if unit.startswith("day"):
             delta = timedelta(days=amount)
-        elif unit.startswith('week'):
+        elif unit.startswith("week"):
             delta = timedelta(weeks=amount)
-        elif unit.startswith('month'):
+        elif unit.startswith("month"):
             # Approximate months as 30 days
             delta = timedelta(days=amount * 30)
         else:
@@ -144,17 +159,17 @@ class DateParser:
         modifier, unit = match.group(1), match.group(2)
         current = datetime.now()
 
-        if unit == 'week':
+        if unit == "week":
             # End of week (Sunday)
             days_until_sunday = (6 - current.weekday()) % 7
-            if modifier == 'this':
+            if modifier == "this":
                 return current + timedelta(days=days_until_sunday)
             else:  # next
                 return current + timedelta(days=days_until_sunday + 7)
 
-        elif unit == 'month':
+        elif unit == "month":
             # End of month
-            if modifier == 'this':
+            if modifier == "this":
                 # Last day of current month
                 if current.month == 12:
                     return datetime(current.year + 1, 1, 1) - timedelta(days=1)
@@ -176,8 +191,13 @@ class DateParser:
         day_name = match.group(1).lower()
 
         days = {
-            'monday': 0, 'tuesday': 1, 'wednesday': 2, 'thursday': 3,
-            'friday': 4, 'saturday': 5, 'sunday': 6
+            "monday": 0,
+            "tuesday": 1,
+            "wednesday": 2,
+            "thursday": 3,
+            "friday": 4,
+            "saturday": 5,
+            "sunday": 6,
         }
 
         target_weekday = days.get(day_name)
@@ -199,8 +219,13 @@ class DateParser:
         day_name = match.group(1).lower()
 
         days = {
-            'monday': 0, 'tuesday': 1, 'wednesday': 2, 'thursday': 3,
-            'friday': 4, 'saturday': 5, 'sunday': 6
+            "monday": 0,
+            "tuesday": 1,
+            "wednesday": 2,
+            "thursday": 3,
+            "friday": 4,
+            "saturday": 5,
+            "sunday": 6,
         }
 
         target_weekday = days.get(day_name)
@@ -224,12 +249,12 @@ class DateParser:
         unit = match.group(1)
         current = datetime.now()
 
-        if unit == 'week':
+        if unit == "week":
             # End of current week (Sunday)
             days_until_sunday = (6 - current.weekday()) % 7
             return current + timedelta(days=days_until_sunday)
 
-        elif unit == 'month':
+        elif unit == "month":
             # Last day of current month
             if current.month == 12:
                 return datetime(current.year + 1, 1, 1) - timedelta(days=1)
@@ -240,9 +265,9 @@ class DateParser:
 
     def format_date_for_project_name(self, date_obj: datetime) -> str:
         """Format date for use in project names (MM/DD format)."""
-        return date_obj.strftime('%m/%d')
+        return date_obj.strftime("%m/%d")
 
-    def validate_future_date(self, date_obj: datetime) -> Tuple[bool, str]:
+    def validate_future_date(self, date_obj: datetime) -> tuple[bool, str]:
         """
         Validate that date is in the future and reasonable.
 

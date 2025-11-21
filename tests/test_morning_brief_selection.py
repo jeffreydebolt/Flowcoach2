@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from apps.server.core.morning_brief import Task, select_morning_brief_tasks, FLOW_TOP_TODAY_LABEL
+from apps.server.core.morning_brief import FLOW_TOP_TODAY_LABEL, Task, select_morning_brief_tasks
 
 
 def make_task(

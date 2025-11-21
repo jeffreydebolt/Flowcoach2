@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Database migration runner for FlowCoach."""
 
-import os
-import sys
 import logging
+import sys
 from pathlib import Path
 
 # Add the parent directory to the path so we can import from apps
@@ -11,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Bootstrap environment variables in local mode
 from apps.server.core.env_bootstrap import bootstrap_env
+
 bootstrap_env()
 
 from apps.server.db.engine import get_db
@@ -27,14 +27,14 @@ def run_migrations():
         logger.info(f"Running migrations for {db_engine.driver_name} database")
 
         # Get migrations directory
-        migrations_dir = Path(__file__).parent.parent / 'apps' / 'server' / 'db' / 'migrations'
+        migrations_dir = Path(__file__).parent.parent / "apps" / "server" / "db" / "migrations"
 
         if not migrations_dir.exists():
             logger.warning(f"Migrations directory not found: {migrations_dir}")
             return
 
         # Get migration files
-        migration_files = sorted(migrations_dir.glob('*.sql'))
+        migration_files = sorted(migrations_dir.glob("*.sql"))
 
         if not migration_files:
             logger.info("No migration files found")
@@ -45,7 +45,7 @@ def run_migrations():
             logger.info(f"Running migration: {migration_file.name}")
 
             try:
-                with open(migration_file, 'r') as f:
+                with open(migration_file) as f:
                     migration_sql = f.read()
 
                 # Skip empty migrations

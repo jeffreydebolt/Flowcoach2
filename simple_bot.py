@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Simple bot to test Socket Mode without all the complex imports."""
 
-import os
 import logging
+import os
 import signal
 import sys
 

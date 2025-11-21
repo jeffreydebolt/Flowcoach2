@@ -1,11 +1,12 @@
 """Unit tests for database retry logic."""
 
-import unittest
+import os
 import sqlite3
 import tempfile
-import os
-from unittest.mock import patch, Mock, MagicMock
-from apps.server.core.db_retry import db_retry, with_db_retry, DatabaseRetryMixin
+import unittest
+from unittest.mock import Mock, patch
+
+from apps.server.core.db_retry import DatabaseRetryMixin, db_retry, with_db_retry
 
 
 class TestDBRetry(unittest.TestCase):
@@ -71,9 +72,10 @@ class TestDBRetry(unittest.TestCase):
 
         self.assertEqual(call_count, 1)
 
-    @patch('apps.server.core.db_retry.log_event')
+    @patch("apps.server.core.db_retry.log_event")
     def test_exhausted_retries_logs_event(self, mock_log_event):
         """Test that exhausted retries log appropriate event."""
+
         @with_db_retry
         def mock_db_operation():
             raise sqlite3.OperationalError("database is locked")
@@ -84,10 +86,10 @@ class TestDBRetry(unittest.TestCase):
         # Verify event was logged
         mock_log_event.assert_called_once()
         call_args = mock_log_event.call_args[1]
-        self.assertEqual(call_args['severity'], 'error')
-        self.assertEqual(call_args['action'], 'db_retry_exhausted')
-        self.assertIn('kind', call_args['payload'])
-        self.assertEqual(call_args['payload']['kind'], 'db_error')
+        self.assertEqual(call_args["severity"], "error")
+        self.assertEqual(call_args["action"], "db_retry_exhausted")
+        self.assertIn("kind", call_args["payload"])
+        self.assertEqual(call_args["payload"]["kind"], "db_error")
 
     def test_custom_retry_parameters(self):
         """Test custom retry parameters work correctly."""
@@ -112,7 +114,7 @@ class TestDBRetry(unittest.TestCase):
             "database is locked",
             "database table is locked",
             "disk i/o error",
-            "unable to open database file"
+            "unable to open database file",
         ]
 
         for error_msg in retryable_errors:
@@ -149,6 +151,7 @@ class TestDBRetry(unittest.TestCase):
 
     def test_database_retry_mixin(self):
         """Test the DatabaseRetryMixin functionality."""
+
         class TestClass(DatabaseRetryMixin):
             pass
 
@@ -178,7 +181,7 @@ class TestDBRetry(unittest.TestCase):
         result = test_instance.fetchall_with_retry(mock_conn, "SELECT * FROM test", ())
         self.assertEqual(result, [("test1", "data1"), ("test2", "data2")])
 
-    @patch('time.sleep')
+    @patch("time.sleep")
     def test_exponential_backoff(self, mock_sleep):
         """Test that exponential backoff works correctly."""
         call_count = 0
@@ -202,5 +205,5 @@ class TestDBRetry(unittest.TestCase):
         self.assertEqual(actual_delays, expected_delays)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

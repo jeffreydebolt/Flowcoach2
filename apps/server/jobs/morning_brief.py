@@ -1,18 +1,18 @@
 """Morning Brief job - sends daily task priorities at 8:30 AM."""
 
-import os
-import pytz
-from datetime import datetime, time
-from typing import List, Dict, Any, Optional
 import logging
+import os
+from datetime import datetime, time
+
+import pytz
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
-from ..todoist.client import TodoistClient
+from ..core.errors import log_event, retry
 from ..core.sorting import TaskSorter
-from ..slack.messages import MessageBuilder
 from ..db.dal import get_dal
-from ..core.errors import retry, log_event
+from ..slack.messages import MessageBuilder
+from ..todoist.client import TodoistClient
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class MorningBriefJob:
     """Sends morning brief with top 3 prioritized tasks."""
 
     def __init__(self):
-        self.slack_token = os.getenv('SLACK_BOT_TOKEN')
+        self.slack_token = os.getenv("SLACK_BOT_TOKEN")
         if not self.slack_token:
             raise ValueError("SLACK_BOT_TOKEN not found in environment")
 
@@ -31,13 +31,13 @@ class MorningBriefJob:
         self.dal = get_dal()
 
         # Default timezone
-        self.default_tz = pytz.timezone(os.getenv('FC_DEFAULT_TIMEZONE', 'America/Denver'))
+        self.default_tz = pytz.timezone(os.getenv("FC_DEFAULT_TIMEZONE", "America/Denver"))
 
     def get_user_timezone(self, user_id: str) -> pytz.timezone:
         """Get user's timezone from Slack profile or use default."""
         try:
             response = self.slack.users_info(user=user_id)
-            tz_string = response['user'].get('tz', 'America/Denver')
+            tz_string = response["user"].get("tz", "America/Denver")
             return pytz.timezone(tz_string)
         except Exception as e:
             logger.warning(f"Failed to get user timezone: {e}")
@@ -76,32 +76,27 @@ class MorningBriefJob:
             # Build and send message
             message = self.message_builder.build_morning_brief(top_tasks)
 
-            response = self.slack.chat_postMessage(
-                channel=user_id,
-                **message
-            )
+            response = self.slack.chat_postMessage(channel=user_id, **message)
 
-            log_event("info", "morning_brief_sent", {
-                "user_id": user_id,
-                "task_count": len(top_tasks),
-                "task_ids": [t['id'] for t in top_tasks]
-            })
+            log_event(
+                "info",
+                "morning_brief_sent",
+                {
+                    "user_id": user_id,
+                    "task_count": len(top_tasks),
+                    "task_ids": [t["id"] for t in top_tasks],
+                },
+            )
 
             return True
 
         except SlackApiError as e:
             logger.error(f"Slack API error: {e}")
-            log_event("error", "morning_brief_slack_error", {
-                "user_id": user_id,
-                "error": str(e)
-            })
+            log_event("error", "morning_brief_slack_error", {"user_id": user_id, "error": str(e)})
             return False
         except Exception as e:
             logger.error(f"Failed to send morning brief: {e}")
-            log_event("error", "morning_brief_error", {
-                "user_id": user_id,
-                "error": str(e)
-            })
+            log_event("error", "morning_brief_error", {"user_id": user_id, "error": str(e)})
             # Try to send fallback
             try:
                 message = self.message_builder.build_fallback_message("general")
@@ -110,7 +105,7 @@ class MorningBriefJob:
                 pass
             return False
 
-    def should_run_for_user(self, user_id: str, check_time: Optional[time] = None) -> bool:
+    def should_run_for_user(self, user_id: str, check_time: time | None = None) -> bool:
         """
         Check if job should run for user at current time.
 
@@ -130,8 +125,7 @@ class MorningBriefJob:
         # Check if it's the right time (within 5 minute window)
         current_time = now.time()
         time_diff = abs(
-            current_time.hour * 60 + current_time.minute -
-            check_time.hour * 60 - check_time.minute
+            current_time.hour * 60 + current_time.minute - check_time.hour * 60 - check_time.minute
         )
 
         return time_diff <= 5
@@ -142,7 +136,7 @@ class MorningBriefJob:
         try:
             # For now, use a configured list of user IDs from environment
             # In production, this would query active users from database
-            user_ids = os.getenv('FC_ACTIVE_USERS', '').split(',')
+            user_ids = os.getenv("FC_ACTIVE_USERS", "").split(",")
             user_ids = [uid.strip() for uid in user_ids if uid.strip()]
 
             if not user_ids:
@@ -162,8 +156,7 @@ class MorningBriefJob:
 def main():
     """Entry point for morning brief job."""
     logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
     job = MorningBriefJob()

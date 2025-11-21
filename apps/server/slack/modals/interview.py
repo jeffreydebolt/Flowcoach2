@@ -1,13 +1,14 @@
 """Interview modal for collecting user preferences."""
 
-from typing import Dict, Any, Optional
+from typing import Any
+
 from slack_bolt import App
 from slack_sdk import WebClient
 
-from ...platform.feature_flags import is_enabled, FlowCoachFlag
+from ...core.prefs import EnergyWindow, WorkPreferences, save_user_prefs
+from ...platform.errors import handle_preferences_error, single_post_error_guard
+from ...platform.feature_flags import FlowCoachFlag, is_enabled
 from ...platform.logging import get_logger
-from ...platform.errors import single_post_error_guard, handle_preferences_error
-from ...core.prefs import WorkPreferences, EnergyWindow, save_user_prefs
 
 logger = get_logger(__name__)
 
@@ -38,7 +39,7 @@ class InterviewModal:
             logger.error(f"Failed to open interview modal: {e}", user_id=user_id)
             raise
 
-    def _create_basics_modal(self) -> Dict[str, Any]:
+    def _create_basics_modal(self) -> dict[str, Any]:
         """Create the basics (step 1) modal."""
         return {
             "type": "modal",
@@ -116,7 +117,7 @@ class InterviewModal:
             ],
         }
 
-    def _create_rhythm_modal(self, basics_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _create_rhythm_modal(self, basics_data: dict[str, Any]) -> dict[str, Any]:
         """Create the daily rhythm (step 2) modal."""
         return {
             "type": "modal",
@@ -201,7 +202,7 @@ class InterviewModal:
             ],
         }
 
-    def _create_energy_modal(self, combined_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _create_energy_modal(self, combined_data: dict[str, Any]) -> dict[str, Any]:
         """Create the energy windows (step 3) modal."""
         return {
             "type": "modal",
@@ -332,7 +333,7 @@ class InterviewModal:
         }
 
     @handle_preferences_error
-    def handle_interview_submission(self, body: Dict[str, Any], client: WebClient) -> None:
+    def handle_interview_submission(self, body: dict[str, Any], client: WebClient) -> None:
         """Handle final interview submission and save preferences."""
         view = body["view"]
         user_id = body["user"]["id"]
@@ -372,7 +373,7 @@ class InterviewModal:
             else:
                 raise Exception("Failed to save preferences")
 
-    def _extract_basics_data(self, view: Dict[str, Any]) -> Dict[str, Any]:
+    def _extract_basics_data(self, view: dict[str, Any]) -> dict[str, Any]:
         """Extract data from basics modal."""
         values = view["state"]["values"]
 
@@ -384,7 +385,7 @@ class InterviewModal:
 
         return {"timezone": timezone, "work_days": ",".join(work_days)}
 
-    def _extract_rhythm_data(self, view: Dict[str, Any]) -> Dict[str, Any]:
+    def _extract_rhythm_data(self, view: dict[str, Any]) -> dict[str, Any]:
         """Extract data from rhythm modal."""
         values = view["state"]["values"]
 
@@ -399,7 +400,7 @@ class InterviewModal:
             "quiet_hours_end": values["quiet_end_block"]["quiet_end"]["selected_time"],
         }
 
-    def _extract_energy_data(self, view: Dict[str, Any]) -> Dict[str, Any]:
+    def _extract_energy_data(self, view: dict[str, Any]) -> dict[str, Any]:
         """Extract data from energy modal."""
         values = view["state"]["values"]
 
@@ -427,7 +428,7 @@ class InterviewModal:
             ]
         }
 
-    def _create_preferences(self, data: Dict[str, Any]) -> WorkPreferences:
+    def _create_preferences(self, data: dict[str, Any]) -> WorkPreferences:
         """Create WorkPreferences from collected data."""
         # Convert energy windows
         energy_windows = []

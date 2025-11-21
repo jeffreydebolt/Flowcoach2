@@ -1,13 +1,11 @@
 """Acceptance tests for FlowCoach Phase 1 - Morning Brief Modal."""
 
-import pytest
-import json
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, date
+from datetime import date
+from unittest.mock import Mock, patch
 
-from apps.server.core.planning import PlanningService, TaskSelector, TaskCandidate
-from apps.server.slack.modals.morning_brief import MorningBriefModal
+from apps.server.core.planning import TaskCandidate, TaskSelector
 from apps.server.platform.feature_flags import FlowCoachFlag, clear_all_overrides, set_override
+from apps.server.slack.modals.morning_brief import MorningBriefModal
 
 
 class TestMorningBriefEndToEnd:

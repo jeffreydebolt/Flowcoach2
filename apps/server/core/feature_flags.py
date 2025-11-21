@@ -1,10 +1,10 @@
 """Feature flag system for FlowCoach."""
 
-import os
 import json
 import logging
-from typing import Dict, Any, Optional, List
+import os
 from enum import Enum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -43,12 +43,10 @@ class FeatureFlagManager:
             FeatureFlag.PROJECT_MOMENTUM.value: True,
             FeatureFlag.PROJECT_AUDIT.value: True,
             FeatureFlag.PROJECT_REWRITE.value: True,
-
             # Advanced features disabled by default
             FeatureFlag.AI_SUGGESTIONS.value: False,
             FeatureFlag.CALENDAR_INTEGRATION.value: False,
             FeatureFlag.ADVANCED_SCORING.value: False,
-
             # Safety flags
             FeatureFlag.EMERGENCY_MODE.value: False,
             FeatureFlag.SLACK_COMMANDS.value: True,
@@ -65,18 +63,18 @@ class FeatureFlagManager:
 
             if env_value is not None:
                 # Parse boolean from env var
-                if env_value.lower() in ('true', '1', 'on', 'yes'):
+                if env_value.lower() in ("true", "1", "on", "yes"):
                     self._flags[flag.value] = True
-                elif env_value.lower() in ('false', '0', 'off', 'no'):
+                elif env_value.lower() in ("false", "0", "off", "no"):
                     self._flags[flag.value] = False
                 else:
                     logger.warning(f"Invalid boolean value for {env_var}: {env_value}")
 
         # Load from config file if present
-        config_path = os.getenv('FC_FEATURE_CONFIG_PATH')
+        config_path = os.getenv("FC_FEATURE_CONFIG_PATH")
         if config_path and os.path.exists(config_path):
             try:
-                with open(config_path, 'r') as f:
+                with open(config_path) as f:
                     config_flags = json.load(f)
 
                 # Update flags with config values
@@ -121,20 +119,20 @@ class FeatureFlagManager:
         if persist:
             self._persist_flags()
 
-    def get_all_flags(self) -> Dict[str, bool]:
+    def get_all_flags(self) -> dict[str, bool]:
         """Get all feature flags and their states."""
         return self._flags.copy()
 
     def _persist_flags(self):
         """Persist current flags to config file if path is set."""
-        config_path = os.getenv('FC_FEATURE_CONFIG_PATH')
+        config_path = os.getenv("FC_FEATURE_CONFIG_PATH")
         if not config_path:
             logger.warning("No FC_FEATURE_CONFIG_PATH set, cannot persist flags")
             return
 
         try:
             os.makedirs(os.path.dirname(config_path), exist_ok=True)
-            with open(config_path, 'w') as f:
+            with open(config_path, "w") as f:
                 json.dump(self._flags, f, indent=2)
 
             logger.info(f"Persisted feature flags to: {config_path}")
@@ -161,26 +159,30 @@ class FeatureFlagManager:
         # Persist emergency state
         self._persist_flags()
 
-    def get_safety_status(self) -> Dict[str, Any]:
+    def get_safety_status(self) -> dict[str, Any]:
         """Get safety-related status information."""
         return {
             "emergency_mode": self.is_enabled(FeatureFlag.EMERGENCY_MODE),
             "database_writes_enabled": self.is_enabled(FeatureFlag.DATABASE_WRITES),
             "slack_commands_enabled": self.is_enabled(FeatureFlag.SLACK_COMMANDS),
             "core_features_enabled": [
-                flag.value for flag in [
+                flag.value
+                for flag in [
                     FeatureFlag.PROJECT_MOMENTUM,
                     FeatureFlag.PROJECT_AUDIT,
-                    FeatureFlag.PROJECT_REWRITE
-                ] if self.is_enabled(flag)
+                    FeatureFlag.PROJECT_REWRITE,
+                ]
+                if self.is_enabled(flag)
             ],
             "experimental_features_enabled": [
-                flag.value for flag in [
+                flag.value
+                for flag in [
                     FeatureFlag.AI_SUGGESTIONS,
                     FeatureFlag.CALENDAR_INTEGRATION,
-                    FeatureFlag.ADVANCED_SCORING
-                ] if self.is_enabled(flag)
-            ]
+                    FeatureFlag.ADVANCED_SCORING,
+                ]
+                if self.is_enabled(flag)
+            ],
         }
 
 
@@ -203,22 +205,28 @@ def is_feature_enabled(flag: FeatureFlag) -> bool:
 
 def require_feature(flag: FeatureFlag):
     """Decorator to require a feature flag for a function."""
+
     def decorator(func):
         def wrapper(*args, **kwargs):
             if not is_feature_enabled(flag):
                 raise RuntimeError(f"Feature {flag.value} is disabled")
             return func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
 def safe_feature(flag: FeatureFlag, fallback_value=None):
     """Decorator to safely handle disabled features with fallback."""
+
     def decorator(func):
         def wrapper(*args, **kwargs):
             if not is_feature_enabled(flag):
                 logger.info(f"Feature {flag.value} disabled, returning fallback")
                 return fallback_value
             return func(*args, **kwargs)
+
         return wrapper
+
     return decorator

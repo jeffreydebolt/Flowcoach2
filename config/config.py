@@ -6,7 +6,8 @@ including API keys, feature flags, and application settings.
 """
 
 import os
-from typing import Dict, Any, Optional
+from typing import Any
+
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -56,7 +57,7 @@ FEATURES = {
 }
 
 
-def get_config() -> Dict[str, Any]:
+def get_config() -> dict[str, Any]:
     """
     Get the complete configuration dictionary.
 
@@ -91,7 +92,7 @@ def get_config() -> Dict[str, Any]:
     }
 
 
-def get_agent_config(agent_name: str) -> Optional[Dict[str, Any]]:
+def get_agent_config(agent_name: str) -> dict[str, Any] | None:
     """
     Get configuration for a specific agent.
 

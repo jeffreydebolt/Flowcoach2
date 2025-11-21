@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Absolute minimal Socket Mode test to isolate connection cycling issue."""
 
-import os
 import logging
-import time
+import os
 import signal
 import sys
 
@@ -47,7 +46,7 @@ def main():
     logger.info("Creating Socket Mode handler...")
     handler = SocketModeHandler(
         app=app,
-        app_token=app_token
+        app_token=app_token,
         # No additional parameters
     )
 

@@ -1,16 +1,18 @@
 """Tests for database engine abstraction."""
 
-import pytest
 import os
 import tempfile
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 from apps.server.db.engine import (
-    get_db_engine,
-    get_db,
-    reset_db_engine,
-    SQLiteEngine,
     PostgreSQLEngine,
-    SupabaseEngine
+    SQLiteEngine,
+    SupabaseEngine,
+    get_db,
+    get_db_engine,
+    reset_db_engine,
 )
 
 
@@ -32,9 +34,9 @@ class TestSQLiteEngine:
 
     def test_sqlite_engine_default_path(self):
         """Test SQLite engine uses default path when none provided."""
-        with patch.dict(os.environ, {'FC_DB_PATH': './test.db'}):
+        with patch.dict(os.environ, {"FC_DB_PATH": "./test.db"}):
             engine = SQLiteEngine()
-            assert engine.db_path == './test.db'
+            assert engine.db_path == "./test.db"
 
     def test_sqlite_connection_context_manager(self):
         """Test SQLite connection context manager."""
@@ -75,7 +77,7 @@ class TestSQLiteEngine:
             with engine.get_connection() as conn:
                 cursor = conn.execute("SELECT name FROM test_table")
                 result = cursor.fetchone()
-                assert result[0] == 'test'
+                assert result[0] == "test"
         finally:
             if os.path.exists(db_path):
                 os.unlink(db_path)
@@ -102,20 +104,22 @@ class TestPostgreSQLEngine:
 
     def test_postgresql_engine_requires_psycopg(self):
         """Test PostgreSQL engine requires psycopg package."""
-        with patch('apps.server.db.engine.PSYCOPG_AVAILABLE', False):
+        with patch("apps.server.db.engine.PSYCOPG_AVAILABLE", False):
             with pytest.raises(ImportError, match="psycopg package required"):
                 PostgreSQLEngine("postgresql://test:test@localhost/test")
 
     def test_postgresql_engine_requires_url(self):
         """Test PostgreSQL engine requires database URL."""
-        with patch('apps.server.db.engine.PSYCOPG_AVAILABLE', True), \
-             patch.dict(os.environ, {}, clear=True):
+        with (
+            patch("apps.server.db.engine.PSYCOPG_AVAILABLE", True),
+            patch.dict(os.environ, {}, clear=True),
+        ):
 
             with pytest.raises(ValueError, match="FC_DB_URL required"):
                 PostgreSQLEngine()
 
-    @patch('apps.server.db.engine.PSYCOPG_AVAILABLE', True)
-    @patch('apps.server.db.engine.psycopg', create=True)
+    @patch("apps.server.db.engine.PSYCOPG_AVAILABLE", True)
+    @patch("apps.server.db.engine.psycopg", create=True)
     def test_postgresql_engine_init_with_url(self, mock_psycopg):
         """Test PostgreSQL engine initialization with URL."""
         mock_conn = MagicMock()
@@ -128,8 +132,8 @@ class TestPostgreSQLEngine:
         # Verify connection was tested
         mock_psycopg.connect.assert_called_with("postgresql://test:test@localhost/test")
 
-    @patch('apps.server.db.engine.PSYCOPG_AVAILABLE', True)
-    @patch('apps.server.db.engine.psycopg', create=True)
+    @patch("apps.server.db.engine.PSYCOPG_AVAILABLE", True)
+    @patch("apps.server.db.engine.psycopg", create=True)
     def test_postgresql_connection_context_manager(self, mock_psycopg):
         """Test PostgreSQL connection context manager."""
         mock_conn = MagicMock()
@@ -142,8 +146,8 @@ class TestPostgreSQLEngine:
 
         mock_conn.close.assert_called_once()
 
-    @patch('apps.server.db.engine.PSYCOPG_AVAILABLE', True)
-    @patch('apps.server.db.engine.psycopg', create=True)
+    @patch("apps.server.db.engine.PSYCOPG_AVAILABLE", True)
+    @patch("apps.server.db.engine.psycopg", create=True)
     def test_postgresql_migration_execution(self, mock_psycopg):
         """Test PostgreSQL migration execution."""
         # Mock for constructor test connection
@@ -163,8 +167,8 @@ class TestPostgreSQLEngine:
         mock_migration_conn.commit.assert_called_once()
         mock_migration_conn.close.assert_called_once()
 
-    @patch('apps.server.db.engine.PSYCOPG_AVAILABLE', True)
-    @patch('apps.server.db.engine.psycopg', create=True)
+    @patch("apps.server.db.engine.PSYCOPG_AVAILABLE", True)
+    @patch("apps.server.db.engine.psycopg", create=True)
     def test_postgresql_health_check(self, mock_psycopg):
         """Test PostgreSQL health check."""
         # Mock for constructor test connection
@@ -194,21 +198,23 @@ class TestSupabaseEngine:
 
     def test_supabase_engine_requires_supabase_package(self):
         """Test Supabase engine requires supabase package."""
-        with patch('apps.server.db.engine.SUPABASE_AVAILABLE', False):
+        with patch("apps.server.db.engine.SUPABASE_AVAILABLE", False):
             with pytest.raises(ImportError, match="supabase package required"):
                 SupabaseEngine("https://test.supabase.co", "service_key")
 
     def test_supabase_engine_requires_credentials(self):
         """Test Supabase engine requires URL and service key."""
-        with patch('apps.server.db.engine.SUPABASE_AVAILABLE', True), \
-             patch.dict(os.environ, {}, clear=True):
+        with (
+            patch("apps.server.db.engine.SUPABASE_AVAILABLE", True),
+            patch.dict(os.environ, {}, clear=True),
+        ):
 
             with pytest.raises(ValueError, match="SUPABASE_URL and SUPABASE_SERVICE_KEY required"):
                 SupabaseEngine()
 
-    @patch('apps.server.db.engine.SUPABASE_AVAILABLE', True)
-    @patch('apps.server.db.engine.create_client')
-    @patch('apps.server.db.engine.PostgreSQLEngine')
+    @patch("apps.server.db.engine.SUPABASE_AVAILABLE", True)
+    @patch("apps.server.db.engine.create_client")
+    @patch("apps.server.db.engine.PostgreSQLEngine")
     def test_supabase_engine_init(self, mock_pg_engine, mock_create_client):
         """Test Supabase engine initialization."""
         mock_client = MagicMock()
@@ -222,9 +228,9 @@ class TestSupabaseEngine:
         # Verify Supabase client was created
         mock_create_client.assert_called_with("https://test.supabase.co", "service_key")
 
-    @patch('apps.server.db.engine.SUPABASE_AVAILABLE', True)
-    @patch('apps.server.db.engine.create_client')
-    @patch('apps.server.db.engine.PostgreSQLEngine')
+    @patch("apps.server.db.engine.SUPABASE_AVAILABLE", True)
+    @patch("apps.server.db.engine.create_client")
+    @patch("apps.server.db.engine.PostgreSQLEngine")
     def test_supabase_health_check_success(self, mock_pg_engine, mock_create_client):
         """Test successful Supabase health check."""
         mock_client = MagicMock()
@@ -232,21 +238,25 @@ class TestSupabaseEngine:
 
         # Mock successful REST API call
         mock_result = MagicMock()
-        mock_client.table.return_value.select.return_value.limit.return_value.execute.return_value = mock_result
+        mock_client.table.return_value.select.return_value.limit.return_value.execute.return_value = (
+            mock_result
+        )
 
         engine = SupabaseEngine("https://test.supabase.co", "service_key")
         assert engine.check_health() is True
 
-    @patch('apps.server.db.engine.SUPABASE_AVAILABLE', True)
-    @patch('apps.server.db.engine.create_client')
-    @patch('apps.server.db.engine.PostgreSQLEngine')
+    @patch("apps.server.db.engine.SUPABASE_AVAILABLE", True)
+    @patch("apps.server.db.engine.create_client")
+    @patch("apps.server.db.engine.PostgreSQLEngine")
     def test_supabase_health_check_fallback(self, mock_pg_engine, mock_create_client):
         """Test Supabase health check falls back to PostgreSQL."""
         mock_client = MagicMock()
         mock_create_client.return_value = mock_client
 
         # Mock failed REST API call
-        mock_client.table.return_value.select.return_value.limit.return_value.execute.side_effect = Exception("API error")
+        mock_client.table.return_value.select.return_value.limit.return_value.execute.side_effect = Exception(
+            "API error"
+        )
 
         # Mock PostgreSQL engine health check
         mock_pg_instance = MagicMock()
@@ -269,41 +279,44 @@ class TestDatabaseEngineFactory:
 
     def test_get_db_engine_explicit_sqlite(self):
         """Test get_db_engine returns SQLite when explicitly set."""
-        with patch.dict(os.environ, {'FC_DB_DRIVER': 'sqlite'}):
+        with patch.dict(os.environ, {"FC_DB_DRIVER": "sqlite"}):
             engine = get_db_engine()
             assert isinstance(engine, SQLiteEngine)
 
-    @patch('apps.server.db.engine.PSYCOPG_AVAILABLE', True)
-    @patch('apps.server.db.engine.psycopg', create=True)
+    @patch("apps.server.db.engine.PSYCOPG_AVAILABLE", True)
+    @patch("apps.server.db.engine.psycopg", create=True)
     def test_get_db_engine_postgresql(self, mock_psycopg):
         """Test get_db_engine returns PostgreSQL engine."""
         mock_conn = MagicMock()
         mock_psycopg.connect.return_value.__enter__.return_value = mock_conn
 
-        with patch.dict(os.environ, {'FC_DB_DRIVER': 'postgres', 'FC_DB_URL': 'postgresql://test'}):
+        with patch.dict(os.environ, {"FC_DB_DRIVER": "postgres", "FC_DB_URL": "postgresql://test"}):
             engine = get_db_engine()
             assert isinstance(engine, PostgreSQLEngine)
 
-    @patch('apps.server.db.engine.SUPABASE_AVAILABLE', True)
-    @patch('apps.server.db.engine.create_client')
-    @patch('apps.server.db.engine.PostgreSQLEngine')
+    @patch("apps.server.db.engine.SUPABASE_AVAILABLE", True)
+    @patch("apps.server.db.engine.create_client")
+    @patch("apps.server.db.engine.PostgreSQLEngine")
     def test_get_db_engine_supabase(self, mock_pg_engine, mock_create_client):
         """Test get_db_engine returns Supabase engine."""
-        with patch.dict(os.environ, {
-            'FC_DB_DRIVER': 'supabase',
-            'SUPABASE_URL': 'https://test.supabase.co',
-            'SUPABASE_SERVICE_KEY': 'service_key'
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "FC_DB_DRIVER": "supabase",
+                "SUPABASE_URL": "https://test.supabase.co",
+                "SUPABASE_SERVICE_KEY": "service_key",
+            },
+        ):
             engine = get_db_engine()
             assert isinstance(engine, SupabaseEngine)
 
     def test_get_db_engine_invalid_driver(self):
         """Test get_db_engine raises error for invalid driver."""
-        with patch.dict(os.environ, {'FC_DB_DRIVER': 'invalid'}):
+        with patch.dict(os.environ, {"FC_DB_DRIVER": "invalid"}):
             with pytest.raises(ValueError, match="Unsupported database driver: invalid"):
                 get_db_engine()
 
-    @patch('apps.server.db.engine.get_db_engine')
+    @patch("apps.server.db.engine.get_db_engine")
     def test_get_db_singleton(self, mock_get_engine):
         """Test get_db returns singleton instance."""
         mock_engine = MagicMock()
@@ -330,7 +343,7 @@ class TestDatabaseEngineFactory:
         reset_db_engine()
 
         # Create a mock engine
-        with patch('apps.server.db.engine.get_db_engine') as mock_get_engine:
+        with patch("apps.server.db.engine.get_db_engine") as mock_get_engine:
             mock_engine1 = MagicMock()
             mock_engine1.driver_name = "test1"
             mock_engine2 = MagicMock()

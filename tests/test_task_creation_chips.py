@@ -1,7 +1,5 @@
 """Tests for Phase 2.0 conversational task creation with chips."""
 
-import pytest
-from unittest.mock import Mock, patch
 from apps.server.slack.blocks import render_task_creation_message
 
 

@@ -1,11 +1,11 @@
 """Project audit classification and logic."""
 
 import logging
-from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
-from ..core.momentum import MomentumTracker, ProjectMomentum
+from ..core.momentum import MomentumTracker
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class ProjectAuditItem:
     momentum_score: int
     status: str
     outcome_defined: bool
-    due_date: Optional[datetime]
+    due_date: datetime | None
     category: str  # 'healthy', 'needs_definition', 'stalled'
     last_activity_days: int
 
@@ -31,8 +31,8 @@ class ProjectAuditor:
         self.tracker = MomentumTracker()
 
     def classify_projects(
-        self, projects: List[Dict[str, Any]]
-    ) -> Dict[str, List[ProjectAuditItem]]:
+        self, projects: list[dict[str, Any]]
+    ) -> dict[str, list[ProjectAuditItem]]:
         """
         Classify projects into audit categories.
 
@@ -96,8 +96,8 @@ class ProjectAuditor:
         return categorized
 
     def get_audit_summary(
-        self, categorized_projects: Dict[str, List[ProjectAuditItem]]
-    ) -> Dict[str, Any]:
+        self, categorized_projects: dict[str, list[ProjectAuditItem]]
+    ) -> dict[str, Any]:
         """Generate audit summary statistics."""
         total_projects = sum(len(projects) for projects in categorized_projects.values())
 
@@ -112,7 +112,7 @@ class ProjectAuditor:
             "audit_timestamp": datetime.now().isoformat(),
         }
 
-    def recommend_actions(self, project: ProjectAuditItem) -> List[str]:
+    def recommend_actions(self, project: ProjectAuditItem) -> list[str]:
         """
         Recommend actions for a project based on its audit category.
 

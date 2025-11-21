@@ -7,10 +7,9 @@ from apps.server.core.env_bootstrap import bootstrap_env
 
 bootstrap_env()
 
-import os
 import logging
-import sys
 import signal
+import sys
 import time
 
 from slack_bolt import App
@@ -74,7 +73,7 @@ def main():
         return 1
 
     # Register middleware
-    from apps.server.slack.middleware import drop_slack_retries_middleware, DeduplicationMiddleware
+    from apps.server.slack.middleware import DeduplicationMiddleware, drop_slack_retries_middleware
 
     logger.info("Registering middleware...")
     app.middleware(drop_slack_retries_middleware(logger))

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
 import os
+
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
-import json
 
 # Load environment
 from apps.server.core.env_bootstrap import bootstrap_env
@@ -24,7 +24,7 @@ def test_slack_connection():
     try:
         # Test authentication
         response = client.auth_test()
-        print(f"✓ Authentication successful!")
+        print("✓ Authentication successful!")
         print(f"  Bot ID: {response['bot_id']}")
         print(f"  Bot User: {response['user']}")
         print(f"  Team: {response['team']}")
@@ -38,7 +38,7 @@ def test_slack_connection():
             channel=bot_user_id,
             text="Test message from debugging script - if you see this, the bot can send messages!",
         )
-        print(f"\n✓ Successfully sent test message!")
+        print("\n✓ Successfully sent test message!")
 
         # Check app manifest
         print("\n✓ Bot permissions look good for Socket Mode operations")

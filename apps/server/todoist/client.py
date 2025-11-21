@@ -1,10 +1,12 @@
 """Todoist API client wrapper."""
 
-import os
-from typing import List, Dict, Optional, Any
-from todoist_api_python.api import TodoistAPI
-from ..core.errors import retry, TodoistError, InvalidTokenError, handle_todoist_error, log_event
 import logging
+import os
+from typing import Any
+
+from todoist_api_python.api import TodoistAPI
+
+from ..core.errors import InvalidTokenError, TodoistError, handle_todoist_error, log_event, retry
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +14,7 @@ logger = logging.getLogger(__name__)
 class TodoistClient:
     """Thin wrapper around Todoist API with retries and error handling."""
 
-    def __init__(self, api_token: Optional[str] = None):
+    def __init__(self, api_token: str | None = None):
         """Initialize Todoist client."""
         self.api_token = api_token or os.getenv("TODOIST_API_TOKEN")
         if not self.api_token:
@@ -23,14 +25,14 @@ class TodoistClient:
             )
         try:
             self.api = TodoistAPI(self.api_token)
-        except Exception as e:
+        except Exception:
             raise InvalidTokenError("Todoist", "Verify your TODOIST_API_TOKEN is correct")
 
     @retry(max_attempts=3, exceptions=(Exception,))
     @handle_todoist_error
     def get_tasks(
-        self, project_id: Optional[str] = None, label: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, project_id: str | None = None, label: str | None = None
+    ) -> list[dict[str, Any]]:
         """Fetch tasks with optional filters."""
         try:
             filter_str = ""
@@ -49,7 +51,7 @@ class TodoistClient:
 
     @retry(max_attempts=3, exceptions=(Exception,))
     @handle_todoist_error
-    def get_projects(self) -> List[Dict[str, Any]]:
+    def get_projects(self) -> list[dict[str, Any]]:
         """Fetch all projects."""
         try:
             projects = self.api.get_projects()
@@ -77,7 +79,7 @@ class TodoistClient:
 
     @retry(max_attempts=3, exceptions=(Exception,))
     @handle_todoist_error
-    def get_labels(self) -> List[Dict[str, Any]]:
+    def get_labels(self) -> list[dict[str, Any]]:
         """Fetch all labels."""
         try:
             labels = self.api.get_labels()
@@ -88,7 +90,7 @@ class TodoistClient:
 
     @retry(max_attempts=3, exceptions=(Exception,))
     @handle_todoist_error
-    def get_sections(self, project_id: str) -> List[Dict[str, Any]]:
+    def get_sections(self, project_id: str) -> list[dict[str, Any]]:
         """Fetch sections for a project."""
         try:
             sections = self.api.get_sections(project_id=project_id)
@@ -98,7 +100,7 @@ class TodoistClient:
             raise TodoistError(f"Failed to fetch sections: {e}")
 
     @retry(max_attempts=2, exceptions=(Exception,))
-    def create_task(self, content: str, **kwargs) -> Dict[str, Any]:
+    def create_task(self, content: str, **kwargs) -> dict[str, Any]:
         """Create a new task."""
         try:
             task = self.api.add_task(content=content, **kwargs)
@@ -109,7 +111,7 @@ class TodoistClient:
             raise TodoistError(f"Failed to create task: {e}")
 
     @retry(max_attempts=2, exceptions=(Exception,))
-    def update_task(self, task_id: str, **kwargs) -> Dict[str, Any]:
+    def update_task(self, task_id: str, **kwargs) -> dict[str, Any]:
         """Update an existing task."""
         try:
             task = self.api.update_task(task_id=task_id, **kwargs)

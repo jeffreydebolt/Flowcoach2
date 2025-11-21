@@ -6,9 +6,8 @@ This module contains handlers for Slack messages.
 
 import logging
 import re
-from typing import Dict, Any, Optional, Tuple
+from typing import Any
 
-from apps.server.nlp import parse_task_input
 from apps.server.slack.blocks import render_task_creation_message
 
 logger = logging.getLogger(__name__)
@@ -44,7 +43,7 @@ def _clean_task_content(text: str) -> str:
     return cleaned if cleaned else text
 
 
-def _detect_new_intent(message: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+def _detect_new_intent(message: dict[str, Any]) -> tuple[bool, str | None]:
     """
     Detect if a message indicates a new conversation intent.
 
@@ -613,8 +612,8 @@ def _is_bulk_priority_intent(text: str) -> bool:
 
 
 def _handle_bulk_priority_review(
-    user_id: str, services: Dict[str, Any]
-) -> Optional[Dict[str, Any]]:
+    user_id: str, services: dict[str, Any]
+) -> dict[str, Any] | None:
     """
     Handle bulk priority review request.
 
@@ -626,7 +625,6 @@ def _handle_bulk_priority_review(
         Response dict for bulk priority list or None if failed
     """
     try:
-        from apps.server.slack.blocks import render_bulk_priority_list
 
         # Get todoist client
         todoist = services.get("todoist")

@@ -1,15 +1,15 @@
 """Slack block rendering helpers for FlowCoach UI components."""
 
-from typing import Dict, List, Any, Optional
+from typing import Any
 
 
 def render_task_creation_message(
     task_content: str,
     task_id: str,
-    current_time: Optional[str] = None,
-    current_priority: Optional[int] = None,
+    current_time: str | None = None,
+    current_priority: int | None = None,
     show_chips: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Render task creation confirmation message with optional time/priority chips.
 
@@ -48,7 +48,7 @@ def render_task_creation_message(
     return {"blocks": blocks}
 
 
-def render_time_chips(task_id: str, selected_time: str) -> List[Dict[str, Any]]:
+def render_time_chips(task_id: str, selected_time: str) -> list[dict[str, Any]]:
     """
     Render time selection chip row.
 
@@ -79,7 +79,7 @@ def render_time_chips(task_id: str, selected_time: str) -> List[Dict[str, Any]]:
     return [{"type": "actions", "block_id": f"time_row_{task_id}", "elements": elements}]
 
 
-def render_priority_chips(task_id: str, selected_priority: int) -> List[Dict[str, Any]]:
+def render_priority_chips(task_id: str, selected_priority: int) -> list[dict[str, Any]]:
     """
     Render priority selection chip row.
 
@@ -117,8 +117,8 @@ def render_priority_chips(task_id: str, selected_priority: int) -> List[Dict[str
 
 
 def render_bulk_priority_list(
-    tasks: List[Dict[str, Any]], page: int = 0, total_pages: int = 1
-) -> Dict[str, Any]:
+    tasks: list[dict[str, Any]], page: int = 0, total_pages: int = 1
+) -> dict[str, Any]:
     """
     Render bulk priority review list with per-task priority selectors.
 
@@ -156,7 +156,7 @@ def render_bulk_priority_list(
     return {"blocks": blocks}
 
 
-def render_bulk_priority_row(task: Dict[str, Any]) -> List[Dict[str, Any]]:
+def render_bulk_priority_row(task: dict[str, Any]) -> list[dict[str, Any]]:
     """
     Render a single task row in bulk priority view.
 
@@ -217,7 +217,7 @@ def render_bulk_priority_row(task: Dict[str, Any]) -> List[Dict[str, Any]]:
     return [task_section, priority_actions, {"type": "divider"}]
 
 
-def render_pagination(page: int, total_pages: int) -> List[Dict[str, Any]]:
+def render_pagination(page: int, total_pages: int) -> list[dict[str, Any]]:
     """
     Render pagination controls.
 

@@ -1,8 +1,9 @@
 """Unit tests for Slack message building."""
 
-import unittest
 import json
-from unittest.mock import patch, mock_open
+import unittest
+from unittest.mock import mock_open, patch
+
 from apps.server.slack.messages import MessageBuilder
 
 
@@ -13,17 +14,9 @@ class TestMessageBuilder(unittest.TestCase):
         """Set up test message builder."""
         # Mock the file reading
         phrases_content = {
-            "morning_brief": {
-                "intros": ["Good morning!"],
-                "outros": ["Have a great day!"]
-            },
-            "evening_wrap": {
-                "intros": ["Evening recap"],
-                "outros": ["Good night!"]
-            },
-            "weekly_outcomes": {
-                "prompts": ["What are your 3 goals?"]
-            }
+            "morning_brief": {"intros": ["Good morning!"], "outros": ["Have a great day!"]},
+            "evening_wrap": {"intros": ["Evening recap"], "outros": ["Good night!"]},
+            "weekly_outcomes": {"prompts": ["What are your 3 goals?"]},
         }
 
         morning_template = {
@@ -33,12 +26,14 @@ class TestMessageBuilder(unittest.TestCase):
                 {"type": "section", "text": {"type": "mrkdwn", "text": "*1.* {item1}"}},
                 {"type": "section", "text": {"type": "mrkdwn", "text": "*2.* {item2}"}},
                 {"type": "section", "text": {"type": "mrkdwn", "text": "*3.* {item3}"}},
-                {"type": "context", "elements": [{"type": "mrkdwn", "text": "{close}"}]}
+                {"type": "context", "elements": [{"type": "mrkdwn", "text": "{close}"}]},
             ]
         }
 
-        with patch("builtins.open", mock_open(read_data=json.dumps(phrases_content))), \
-             patch.object(MessageBuilder, '_load_template', return_value=morning_template):
+        with (
+            patch("builtins.open", mock_open(read_data=json.dumps(phrases_content))),
+            patch.object(MessageBuilder, "_load_template", return_value=morning_template),
+        ):
             self.builder = MessageBuilder()
 
     def test_morning_brief_payload_structure(self):
@@ -154,5 +149,5 @@ class TestMessageBuilder(unittest.TestCase):
                     self.assertIn("Something went wrong", message_str)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

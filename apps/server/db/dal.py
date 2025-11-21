@@ -1,20 +1,15 @@
 """Data Access Layer for FlowCoach."""
 
-from .models import (
-    WeeklyOutcomesModel,
-    TaskScoreModel,
-    EventLogger,
-    MorningBriefModel
-)
-from .engine import get_db
 from typing import Optional
-import os
+
+from .engine import get_db
+from .models import EventLogger, MorningBriefModel, TaskScoreModel, WeeklyOutcomesModel
 
 
 class DAL:
     """Centralized data access layer using database engine abstraction."""
 
-    _instance: Optional['DAL'] = None
+    _instance: Optional["DAL"] = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -22,7 +17,7 @@ class DAL:
         return cls._instance
 
     def __init__(self):
-        if not hasattr(self, 'initialized'):
+        if not hasattr(self, "initialized"):
             # Use the database engine abstraction instead of direct Database class
             self.db_engine = get_db()
             self.weekly_outcomes = WeeklyOutcomesModel(self.db_engine)

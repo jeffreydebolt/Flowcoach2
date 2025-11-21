@@ -7,7 +7,6 @@ It provides fallback mechanisms and validation to maintain core functionality.
 
 import logging
 import re
-from typing import Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -174,32 +173,32 @@ class GTDProtection:
         """
         # Check if formatted text is empty or same as original
         if not formatted or formatted.strip() == original.strip():
-            logger.warning(f"GTDProtection: Formatting failed validation - no change detected")
+            logger.warning("GTDProtection: Formatting failed validation - no change detected")
             return False
 
         # Check if it starts with capital letter
         if not formatted[0].isupper():
             logger.warning(
-                f"GTDProtection: Formatting failed validation - doesn't start with capital"
+                "GTDProtection: Formatting failed validation - doesn't start with capital"
             )
             return False
 
         # Check if it's too short (less than 3 characters)
         if len(formatted) < 3:
-            logger.warning(f"GTDProtection: Formatting failed validation - too short")
+            logger.warning("GTDProtection: Formatting failed validation - too short")
             return False
 
         # Check if it contains only special characters
         if not any(c.isalnum() for c in formatted):
             logger.warning(
-                f"GTDProtection: Formatting failed validation - no alphanumeric characters"
+                "GTDProtection: Formatting failed validation - no alphanumeric characters"
             )
             return False
 
         return True
 
     def protect_gtd_format(
-        self, original_text: str, ai_formatted_text: Optional[str] = None
+        self, original_text: str, ai_formatted_text: str | None = None
     ) -> str:
         """
         Main protection method - ensures GTD formatting ALWAYS works.

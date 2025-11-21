@@ -1,11 +1,11 @@
 """Regression tests for Phase 1.1 hotfix fixes."""
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
+
 from slack_sdk import WebClient
 
+from apps.server.slack.middleware import DeduplicationMiddleware, drop_slack_retries_middleware
 from apps.server.slack.modals.morning_brief import MorningBriefModal, open_morning_brief
-from apps.server.slack.middleware import drop_slack_retries_middleware, DeduplicationMiddleware
 from handlers.action_handlers import register_action_handlers
 from handlers.message_handlers import _clean_task_content
 

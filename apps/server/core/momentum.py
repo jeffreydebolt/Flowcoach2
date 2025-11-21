@@ -1,38 +1,40 @@
 """Project momentum tracking and scoring logic."""
 
 import logging
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 
-from ..db.dal import get_dal
 from ..core.db_retry import with_db_retry
 from ..core.feature_flags import FeatureFlag, is_feature_enabled
+from ..db.dal import get_dal
 
 logger = logging.getLogger(__name__)
 
 
 def require_db_writes(func):
     """Decorator to check if database writes are enabled."""
+
     def wrapper(self, *args, **kwargs):
         if not is_feature_enabled(FeatureFlag.DATABASE_WRITES):
             logger.warning(f"Database writes disabled - skipping {func.__name__}")
             return False
         return func(self, *args, **kwargs)
+
     return wrapper
 
 
 @dataclass
 class ProjectMomentum:
     """Project momentum data class."""
+
     project_id: str
     last_activity_at: datetime
     momentum_score: int
     status: str
     outcome_defined: bool
-    due_date: Optional[datetime] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    due_date: datetime | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class MomentumTracker:
@@ -44,10 +46,7 @@ class MomentumTracker:
     @with_db_retry
     @require_db_writes
     def update_project_momentum(
-        self,
-        project_id: str,
-        is_deep_work: bool = False,
-        completed_task: bool = True
+        self, project_id: str, is_deep_work: bool = False, completed_task: bool = True
     ) -> None:
         """
         Update momentum for a project based on task activity.
@@ -69,11 +68,14 @@ class MomentumTracker:
 
         with self.dal.db_engine.get_connection() as conn:
             # Get existing momentum or create new
-            cursor = conn.execute("""
+            cursor = conn.execute(
+                """
                 SELECT momentum_score, status
                 FROM project_momentum
                 WHERE project_id = ?
-            """, (project_id,))
+            """,
+                (project_id,),
+            )
 
             row = cursor.fetchone()
 
@@ -85,25 +87,31 @@ class MomentumTracker:
                 new_score = min(100, current_score + boost)
 
                 # Update status if needed
-                new_status = 'active' if new_score >= 50 else current_status
+                new_status = "active" if new_score >= 50 else current_status
 
                 # Update existing record
-                conn.execute("""
+                conn.execute(
+                    """
                     UPDATE project_momentum
                     SET last_activity_at = ?,
                         momentum_score = ?,
                         status = ?,
                         updated_at = ?
                     WHERE project_id = ?
-                """, (now, new_score, new_status, now, project_id))
+                """,
+                    (now, new_score, new_status, now, project_id),
+                )
             else:
                 # Create new record
                 initial_score = min(100, 100 + boost)  # Start at 100 + boost
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT INTO project_momentum
                     (project_id, last_activity_at, momentum_score, status, outcome_defined, created_at, updated_at)
                     VALUES (?, ?, ?, 'active', FALSE, ?, ?)
-                """, (project_id, now, initial_score, now, now))
+                """,
+                    (project_id, now, initial_score, now, now),
+                )
 
             conn.commit()
 
@@ -125,11 +133,14 @@ class MomentumTracker:
 
         with self.dal.db_engine.get_connection() as conn:
             # Get projects that need decay
-            cursor = conn.execute("""
+            cursor = conn.execute(
+                """
                 SELECT project_id, last_activity_at, momentum_score, status
                 FROM project_momentum
                 WHERE datetime(last_activity_at) < datetime(?) AND status != 'paused'
-            """, (cutoff_date.isoformat(),))
+            """,
+                (cutoff_date.isoformat(),),
+            )
 
             projects_to_update = cursor.fetchall()
 
@@ -137,8 +148,8 @@ class MomentumTracker:
                 # Calculate days idle
                 if isinstance(last_activity, str):
                     # Handle both ISO format with and without timezone
-                    if 'T' in last_activity:
-                        last_activity = datetime.fromisoformat(last_activity.replace('Z', '+00:00'))
+                    if "T" in last_activity:
+                        last_activity = datetime.fromisoformat(last_activity.replace("Z", "+00:00"))
                     else:
                         last_activity = datetime.fromisoformat(last_activity)
 
@@ -152,19 +163,22 @@ class MomentumTracker:
                 new_score = max(0, current_score - decay_amount)
 
                 # Determine new status
-                if new_score < 50 and current_status == 'active':
-                    new_status = 'stalled'
+                if new_score < 50 and current_status == "active":
+                    new_status = "stalled"
                 else:
                     new_status = current_status
 
                 # Update project
-                conn.execute("""
+                conn.execute(
+                    """
                     UPDATE project_momentum
                     SET momentum_score = ?,
                         status = ?,
                         updated_at = ?
                     WHERE project_id = ?
-                """, (new_score, new_status, datetime.now(), project_id))
+                """,
+                    (new_score, new_status, datetime.now(), project_id),
+                )
 
                 updated_count += 1
 
@@ -178,15 +192,18 @@ class MomentumTracker:
         return updated_count
 
     @with_db_retry
-    def get_project_momentum(self, project_id: str) -> Optional[ProjectMomentum]:
+    def get_project_momentum(self, project_id: str) -> ProjectMomentum | None:
         """Get momentum data for a specific project."""
         with self.dal.db_engine.get_connection() as conn:
-            cursor = conn.execute("""
+            cursor = conn.execute(
+                """
                 SELECT project_id, last_activity_at, momentum_score, status,
                        outcome_defined, due_date, created_at, updated_at
                 FROM project_momentum
                 WHERE project_id = ?
-            """, (project_id,))
+            """,
+                (project_id,),
+            )
 
             row = cursor.fetchone()
             if not row:
@@ -200,7 +217,7 @@ class MomentumTracker:
                 outcome_defined=bool(row[4]),
                 due_date=datetime.fromisoformat(row[5]) if row[5] else None,
                 created_at=datetime.fromisoformat(row[6]) if row[6] else None,
-                updated_at=datetime.fromisoformat(row[7]) if row[7] else None
+                updated_at=datetime.fromisoformat(row[7]) if row[7] else None,
             )
 
     @with_db_retry
@@ -219,10 +236,13 @@ class MomentumTracker:
         now = datetime.now()
 
         with self.dal.db_engine.get_connection() as conn:
-            cursor = conn.execute("""
+            cursor = conn.execute(
+                """
                 SELECT momentum_score, status FROM project_momentum
                 WHERE project_id = ?
-            """, (project_id,))
+            """,
+                (project_id,),
+            )
 
             row = cursor.fetchone()
             if not row:
@@ -230,16 +250,19 @@ class MomentumTracker:
 
             current_score = row[0]
             new_score = max(current_score, minimum_score)
-            new_status = 'active' if new_score >= 50 else row[1]
+            new_status = "active" if new_score >= 50 else row[1]
 
-            conn.execute("""
+            conn.execute(
+                """
                 UPDATE project_momentum
                 SET momentum_score = ?,
                     status = ?,
                     last_activity_at = ?,
                     updated_at = ?
                 WHERE project_id = ?
-            """, (new_score, new_status, now, now, project_id))
+            """,
+                (new_score, new_status, now, now, project_id),
+            )
 
             conn.commit()
 
@@ -251,11 +274,14 @@ class MomentumTracker:
     def pause_project(self, project_id: str) -> bool:
         """Pause a project (stops momentum decay)."""
         with self.dal.db_engine.get_connection() as conn:
-            cursor = conn.execute("""
+            cursor = conn.execute(
+                """
                 UPDATE project_momentum
                 SET status = 'paused', updated_at = ?
                 WHERE project_id = ?
-            """, (datetime.now(), project_id))
+            """,
+                (datetime.now(), project_id),
+            )
 
             conn.commit()
             return cursor.rowcount > 0
@@ -263,10 +289,7 @@ class MomentumTracker:
     @with_db_retry
     @require_db_writes
     def rewrite_project(
-        self,
-        project_id: str,
-        outcome: str,
-        due_date: Optional[datetime] = None
+        self, project_id: str, outcome: str, due_date: datetime | None = None
     ) -> bool:
         """
         Rewrite a project with new outcome and due date.
@@ -283,7 +306,8 @@ class MomentumTracker:
 
         with self.dal.db_engine.get_connection() as conn:
             # Upsert project momentum record
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT OR REPLACE INTO project_momentum
                 (project_id, last_activity_at, momentum_score, status,
                  outcome_defined, due_date, created_at, updated_at)
@@ -292,7 +316,9 @@ class MomentumTracker:
                     'active', TRUE, ?,
                     COALESCE((SELECT created_at FROM project_momentum WHERE project_id = ?), ?),
                     ?)
-            """, (project_id, now, project_id, due_date, project_id, now, now))
+            """,
+                (project_id, now, project_id, due_date, project_id, now, now),
+            )
 
             conn.commit()
 
@@ -302,10 +328,7 @@ class MomentumTracker:
     @with_db_retry
     @require_db_writes
     def update_project_outcome(
-        self,
-        project_id: str,
-        outcome_defined: bool = True,
-        due_date: Optional[datetime] = None
+        self, project_id: str, outcome_defined: bool = True, due_date: datetime | None = None
     ) -> bool:
         """
         Update project outcome and due date without changing momentum score.
@@ -322,7 +345,8 @@ class MomentumTracker:
 
         with self.dal.db_engine.get_connection() as conn:
             # Upsert project momentum record, preserving momentum score
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT OR REPLACE INTO project_momentum
                 (project_id, last_activity_at, momentum_score, status,
                  outcome_defined, due_date, created_at, updated_at)
@@ -332,9 +356,23 @@ class MomentumTracker:
                     ?, ?,
                     COALESCE((SELECT created_at FROM project_momentum WHERE project_id = ?), ?),
                     ?)
-            """, (project_id, now, project_id, project_id, outcome_defined, due_date, project_id, now, now))
+            """,
+                (
+                    project_id,
+                    now,
+                    project_id,
+                    project_id,
+                    outcome_defined,
+                    due_date,
+                    project_id,
+                    now,
+                    now,
+                ),
+            )
 
             conn.commit()
 
-            logger.info(f"Updated project {project_id} outcome: outcome_defined={outcome_defined}, due_date={due_date}")
+            logger.info(
+                f"Updated project {project_id} outcome: outcome_defined={outcome_defined}, due_date={due_date}"
+            )
             return True

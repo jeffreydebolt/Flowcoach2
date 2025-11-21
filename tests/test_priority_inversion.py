@@ -1,7 +1,7 @@
 """Tests for human-friendly priority inversion (Phase 2.0)."""
 
-import pytest
 from unittest.mock import Mock, patch
+
 from apps.server.integrations.todoist_client import TodoistClient
 
 

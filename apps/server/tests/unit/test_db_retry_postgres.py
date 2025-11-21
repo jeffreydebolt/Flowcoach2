@@ -1,13 +1,16 @@
 """Tests for PostgreSQL retry logic in db_retry module."""
 
-import pytest
 import time
-from unittest.mock import Mock, patch, MagicMock
-from apps.server.core.db_retry import db_retry, with_db_retry, PSYCOPG_AVAILABLE
+from unittest.mock import patch
+
+import pytest
+
+from apps.server.core.db_retry import db_retry, with_db_retry
 
 
 class MockPsycopgError(Exception):
     """Mock PostgreSQL operational error."""
+
     pass
 
 
@@ -27,9 +30,11 @@ class TestPostgreSQLRetry:
             return "success"
 
         # Mock psycopg availability and error class
-        with patch('apps.server.core.db_retry.PSYCOPG_AVAILABLE', True), \
-             patch('apps.server.core.db_retry.PsycopgOperationalError', MockPsycopgError), \
-             patch('apps.server.core.db_retry.log_event'):
+        with (
+            patch("apps.server.core.db_retry.PSYCOPG_AVAILABLE", True),
+            patch("apps.server.core.db_retry.PsycopgOperationalError", MockPsycopgError),
+            patch("apps.server.core.db_retry.log_event"),
+        ):
 
             result = failing_postgres_operation()
             assert result == "success"
@@ -47,9 +52,11 @@ class TestPostgreSQLRetry:
                 raise MockPsycopgError("deadlock detected")
             return "resolved"
 
-        with patch('apps.server.core.db_retry.PSYCOPG_AVAILABLE', True), \
-             patch('apps.server.core.db_retry.PsycopgOperationalError', MockPsycopgError), \
-             patch('apps.server.core.db_retry.log_event'):
+        with (
+            patch("apps.server.core.db_retry.PSYCOPG_AVAILABLE", True),
+            patch("apps.server.core.db_retry.PsycopgOperationalError", MockPsycopgError),
+            patch("apps.server.core.db_retry.log_event"),
+        ):
 
             result = deadlock_operation()
             assert result == "resolved"
@@ -67,9 +74,11 @@ class TestPostgreSQLRetry:
                 raise MockPsycopgError("could not serialize access due to concurrent update")
             return "serialized"
 
-        with patch('apps.server.core.db_retry.PSYCOPG_AVAILABLE', True), \
-             patch('apps.server.core.db_retry.PsycopgOperationalError', MockPsycopgError), \
-             patch('apps.server.core.db_retry.log_event'):
+        with (
+            patch("apps.server.core.db_retry.PSYCOPG_AVAILABLE", True),
+            patch("apps.server.core.db_retry.PsycopgOperationalError", MockPsycopgError),
+            patch("apps.server.core.db_retry.log_event"),
+        ):
 
             result = serialization_operation()
             assert result == "serialized"
@@ -77,13 +86,16 @@ class TestPostgreSQLRetry:
 
     def test_postgresql_timeout_retry(self):
         """Test that PostgreSQL timeout errors are retried."""
+
         @db_retry(max_attempts=2, delay=0.01)
         def timeout_operation():
             raise MockPsycopgError("timeout expired")
 
-        with patch('apps.server.core.db_retry.PSYCOPG_AVAILABLE', True), \
-             patch('apps.server.core.db_retry.PsycopgOperationalError', MockPsycopgError), \
-             patch('apps.server.core.db_retry.log_event') as mock_log:
+        with (
+            patch("apps.server.core.db_retry.PSYCOPG_AVAILABLE", True),
+            patch("apps.server.core.db_retry.PsycopgOperationalError", MockPsycopgError),
+            patch("apps.server.core.db_retry.log_event") as mock_log,
+        ):
 
             with pytest.raises(MockPsycopgError):
                 timeout_operation()
@@ -91,9 +103,9 @@ class TestPostgreSQLRetry:
             # Verify error was logged with correct error type
             mock_log.assert_called_once()
             call_args = mock_log.call_args[1]
-            assert call_args['severity'] == 'error'
-            assert call_args['action'] == 'db_retry_exhausted'
-            assert call_args['payload']['error_type'] == 'postgresql'
+            assert call_args["severity"] == "error"
+            assert call_args["action"] == "db_retry_exhausted"
+            assert call_args["payload"]["error_type"] == "postgresql"
 
     def test_postgresql_non_retryable_error(self):
         """Test that PostgreSQL non-retryable errors are not retried."""
@@ -105,9 +117,11 @@ class TestPostgreSQLRetry:
             call_count += 1
             raise MockPsycopgError("relation 'table_name' does not exist")
 
-        with patch('apps.server.core.db_retry.PSYCOPG_AVAILABLE', True), \
-             patch('apps.server.core.db_retry.PsycopgOperationalError', MockPsycopgError), \
-             patch('apps.server.core.db_retry.log_event'):
+        with (
+            patch("apps.server.core.db_retry.PSYCOPG_AVAILABLE", True),
+            patch("apps.server.core.db_retry.PsycopgOperationalError", MockPsycopgError),
+            patch("apps.server.core.db_retry.log_event"),
+        ):
 
             with pytest.raises(MockPsycopgError):
                 non_retryable_operation()
@@ -124,9 +138,11 @@ class TestPostgreSQLRetry:
             call_times.append(time.time())
             raise MockPsycopgError("connection refused")
 
-        with patch('apps.server.core.db_retry.PSYCOPG_AVAILABLE', True), \
-             patch('apps.server.core.db_retry.PsycopgOperationalError', MockPsycopgError), \
-             patch('apps.server.core.db_retry.log_event'):
+        with (
+            patch("apps.server.core.db_retry.PSYCOPG_AVAILABLE", True),
+            patch("apps.server.core.db_retry.PsycopgOperationalError", MockPsycopgError),
+            patch("apps.server.core.db_retry.log_event"),
+        ):
 
             with pytest.raises(MockPsycopgError):
                 timed_operation()
@@ -147,10 +163,11 @@ class TestPostgreSQLRetry:
         def postgres_without_psycopg():
             # This should use the fallback Exception class
             from apps.server.core.db_retry import PsycopgOperationalError
+
             raise PsycopgOperationalError("connection error")
 
         # Test when PSYCOPG_AVAILABLE is False
-        with patch('apps.server.core.db_retry.PSYCOPG_AVAILABLE', False):
+        with patch("apps.server.core.db_retry.PSYCOPG_AVAILABLE", False):
 
             with pytest.raises(Exception):
                 postgres_without_psycopg()
@@ -158,6 +175,7 @@ class TestPostgreSQLRetry:
     def test_mixed_sqlite_postgresql_errors(self):
         """Test that both SQLite and PostgreSQL errors can be handled."""
         import sqlite3
+
         call_count = 0
 
         @db_retry(max_attempts=3, delay=0.01)
@@ -170,9 +188,11 @@ class TestPostgreSQLRetry:
                 raise MockPsycopgError("connection to server was lost")
             return "success"
 
-        with patch('apps.server.core.db_retry.PSYCOPG_AVAILABLE', True), \
-             patch('apps.server.core.db_retry.PsycopgOperationalError', MockPsycopgError), \
-             patch('apps.server.core.db_retry.log_event'):
+        with (
+            patch("apps.server.core.db_retry.PSYCOPG_AVAILABLE", True),
+            patch("apps.server.core.db_retry.PsycopgOperationalError", MockPsycopgError),
+            patch("apps.server.core.db_retry.log_event"),
+        ):
 
             result = mixed_errors()
             assert result == "success"
@@ -184,7 +204,7 @@ class TestPostgreSQLRetry:
             "no route to host",
             "network is unreachable",
             "connection refused",
-            "server closed the connection unexpectedly"
+            "server closed the connection unexpectedly",
         ]
 
         for error_msg in network_errors:
@@ -198,9 +218,11 @@ class TestPostgreSQLRetry:
                     raise MockPsycopgError(error_msg)
                 return "connected"
 
-            with patch('apps.server.core.db_retry.PSYCOPG_AVAILABLE', True), \
-                 patch('apps.server.core.db_retry.PsycopgOperationalError', MockPsycopgError), \
-                 patch('apps.server.core.db_retry.log_event'):
+            with (
+                patch("apps.server.core.db_retry.PSYCOPG_AVAILABLE", True),
+                patch("apps.server.core.db_retry.PsycopgOperationalError", MockPsycopgError),
+                patch("apps.server.core.db_retry.log_event"),
+            ):
 
                 result = network_operation()
                 assert result == "connected"
@@ -213,6 +235,7 @@ class TestDatabaseRetryCompatibility:
     def test_sqlite_errors_still_work(self):
         """Test that SQLite error handling is unchanged."""
         import sqlite3
+
         call_count = 0
 
         @db_retry(max_attempts=2, delay=0.01)
@@ -223,7 +246,7 @@ class TestDatabaseRetryCompatibility:
                 raise sqlite3.OperationalError("database is locked")
             return "unlocked"
 
-        with patch('apps.server.core.db_retry.log_event'):
+        with patch("apps.server.core.db_retry.log_event"):
             result = sqlite_operation()
             assert result == "unlocked"
             assert call_count == 2
@@ -256,9 +279,11 @@ class TestDatabaseRetryCompatibility:
                 raise MockPsycopgError("temporary failure in name resolution")
             return "resolved"
 
-        with patch('apps.server.core.db_retry.PSYCOPG_AVAILABLE', True), \
-             patch('apps.server.core.db_retry.PsycopgOperationalError', MockPsycopgError), \
-             patch('apps.server.core.db_retry.log_event'):
+        with (
+            patch("apps.server.core.db_retry.PSYCOPG_AVAILABLE", True),
+            patch("apps.server.core.db_retry.PsycopgOperationalError", MockPsycopgError),
+            patch("apps.server.core.db_retry.log_event"),
+        ):
 
             result = postgres_convenience()
             assert result == "resolved"

@@ -1,15 +1,15 @@
 """CLI tool to trigger deep work task scoring."""
 
+import logging
 import os
 import sys
-import logging
 from pathlib import Path
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from apps.server.core.scheduler import DeepWorkScheduler
 from apps.server.core.errors import log_event
+from apps.server.core.scheduler import DeepWorkScheduler
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +17,7 @@ logger = logging.getLogger(__name__)
 def main():
     """Process and score deep work tasks."""
     logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
     logger.info("Starting deep work task scoring...")
@@ -27,7 +26,7 @@ def main():
         scheduler = DeepWorkScheduler()
 
         # Process new tasks (will prompt users if configured)
-        user_id = os.getenv('FC_DEFAULT_USER')  # Optional default user for prompts
+        user_id = os.getenv("FC_DEFAULT_USER")  # Optional default user for prompts
         scheduler.process_new_tasks(user_id)
 
         # Batch process any unscored tasks

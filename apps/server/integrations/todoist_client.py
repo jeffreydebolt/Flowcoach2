@@ -1,10 +1,11 @@
 """Typed Todoist client wrapper with retry and metadata support."""
 
+import logging
 import os
 import time
-import logging
-from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
+from typing import Any
+
 from todoist_api_python.api import TodoistAPI
 from todoist_api_python.models import Task
 
@@ -15,9 +16,9 @@ logger = logging.getLogger(__name__)
 class TaskFilter:
     """Filter criteria for task queries."""
 
-    project_id: Optional[str] = None
-    label_names: Optional[List[str]] = None
-    due_date: Optional[str] = None
+    project_id: str | None = None
+    label_names: list[str] | None = None
+    due_date: str | None = None
     completed: bool = False
 
 
@@ -39,14 +40,14 @@ class TodoistClient:
     - Retry with exponential backoff
     """
 
-    def __init__(self, api_token: Optional[str] = None):
+    def __init__(self, api_token: str | None = None):
         """Initialize Todoist client."""
         self.api_token = api_token or os.getenv("TODOIST_API_TOKEN")
         if not self.api_token:
             raise ValueError("TODOIST_API_TOKEN environment variable required")
 
         self.api = TodoistAPI(self.api_token)
-        self._flowcoach_project_id: Optional[str] = None
+        self._flowcoach_project_id: str | None = None
 
     def _retry_with_backoff(self, func, max_retries: int = 3) -> Any:
         """Execute function with exponential backoff on rate limits."""
@@ -76,7 +77,7 @@ class TodoistClient:
 
         raise TodoistRetryError(f"Failed after {max_retries} attempts: {last_exception}")
 
-    def get_tasks_by_filter(self, task_filter: TaskFilter) -> List[Dict[str, Any]]:
+    def get_tasks_by_filter(self, task_filter: TaskFilter) -> list[dict[str, Any]]:
         """Get tasks matching the filter criteria."""
 
         def _get_tasks():
@@ -97,7 +98,7 @@ class TodoistClient:
 
         return self._retry_with_backoff(_get_tasks)
 
-    def add_task_labels(self, task_id: str, label_names: List[str]) -> bool:
+    def add_task_labels(self, task_id: str, label_names: list[str]) -> bool:
         """Add labels to a task."""
 
         def _add_labels():
@@ -110,7 +111,7 @@ class TodoistClient:
 
         return self._retry_with_backoff(_add_labels)
 
-    def remove_task_labels(self, task_id: str, label_names: List[str]) -> bool:
+    def remove_task_labels(self, task_id: str, label_names: list[str]) -> bool:
         """Remove labels from a task."""
 
         def _remove_labels():
@@ -146,7 +147,7 @@ class TodoistClient:
 
         return self._retry_with_backoff(_create_subtask)
 
-    def get_tasks(self, **kwargs) -> List[Dict[str, Any]]:
+    def get_tasks(self, **kwargs) -> list[dict[str, Any]]:
         """Get tasks from Todoist. Wrapper for API compatibility."""
 
         def _get_tasks():
@@ -156,7 +157,7 @@ class TodoistClient:
 
         return self._retry_with_backoff(_get_tasks)
 
-    def get_projects(self) -> List[Dict[str, Any]]:
+    def get_projects(self) -> list[dict[str, Any]]:
         """Get all projects from Todoist."""
 
         def _get_projects():
@@ -166,7 +167,7 @@ class TodoistClient:
 
         return self._retry_with_backoff(_get_projects)
 
-    def get_completed_today(self) -> List[Dict[str, Any]]:
+    def get_completed_today(self) -> list[dict[str, Any]]:
         """Get tasks completed today."""
 
         def _get_completed():
@@ -177,7 +178,7 @@ class TodoistClient:
 
         return self._retry_with_backoff(_get_completed)
 
-    def get_flowcoach_project(self) -> Optional[str]:
+    def get_flowcoach_project(self) -> str | None:
         """Get or create the FlowCoach project for metadata storage."""
         if self._flowcoach_project_id:
             return self._flowcoach_project_id
@@ -228,7 +229,7 @@ class TodoistClient:
 
         return self._retry_with_backoff(_save_note)
 
-    def load_project_note(self) -> Optional[str]:
+    def load_project_note(self) -> str | None:
         """Load content from the pinned FlowCoach preferences task."""
         project_id = self.get_flowcoach_project()
 
@@ -243,7 +244,7 @@ class TodoistClient:
 
         return self._retry_with_backoff(_load_note)
 
-    def _task_to_dict(self, task: Task) -> Dict[str, Any]:
+    def _task_to_dict(self, task: Task) -> dict[str, Any]:
         """Convert Task object to dictionary."""
         due_dict = None
         if task.due:
@@ -338,7 +339,7 @@ class TodoistClient:
         # Human: P1=urgent, P2=high, P3=normal, P4=low
         return 5 - p_todoist
 
-    def get_open_flow_top_today_tasks(self, user_id: str) -> List[Dict[str, Any]]:
+    def get_open_flow_top_today_tasks(self, user_id: str) -> list[dict[str, Any]]:
         """Get all open tasks with flow_top_today label for a user."""
 
         def _get_tasks():
@@ -360,7 +361,7 @@ class TodoistClient:
 
         self._retry_with_backoff(_clear_label)
 
-    def update_task(self, task_id: str, payload: Dict[str, Any]) -> None:
+    def update_task(self, task_id: str, payload: dict[str, Any]) -> None:
         """Update a task with the given payload."""
 
         def _update():

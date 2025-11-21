@@ -5,17 +5,18 @@ This module provides a service for interacting with the Anthropic Claude API.
 """
 
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Any
 
 try:
     from anthropic import Anthropic
 except ImportError:
     Anthropic = None
 
+
 class ClaudeService:
     """Service for interacting with Anthropic Claude API."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Initialize the Claude service.
 
@@ -38,7 +39,9 @@ class ClaudeService:
             self.logger.error(f"Failed to initialize Claude API: {e}")
             raise
 
-    def generate_text(self, prompt: str, max_tokens: int = 500, system: Optional[str] = None) -> str:
+    def generate_text(
+        self, prompt: str, max_tokens: int = 500, system: str | None = None
+    ) -> str:
         """
         Generate text using Claude.
 
@@ -57,7 +60,7 @@ class ClaudeService:
                 "model": self.model,
                 "max_tokens": max_tokens,
                 "temperature": self.temperature,
-                "messages": messages
+                "messages": messages,
             }
 
             if system:
@@ -67,17 +70,17 @@ class ClaudeService:
 
             # Extract text from response
             if response.content and len(response.content) > 0:
-                if hasattr(response.content[0], 'text'):
+                if hasattr(response.content[0], "text"):
                     return response.content[0].text
-                elif isinstance(response.content[0], dict) and 'text' in response.content[0]:
-                    return response.content[0]['text']
+                elif isinstance(response.content[0], dict) and "text" in response.content[0]:
+                    return response.content[0]["text"]
 
             return str(response.content[0]) if response.content else ""
         except Exception as e:
             self.logger.error(f"Error generating text with Claude: {e}")
             raise
 
-    def generate_response(self, message: str, user_id: str, context: Dict[str, Any]) -> str:
+    def generate_response(self, message: str, user_id: str, context: dict[str, Any]) -> str:
         """
         Generate a response to a user message with context.
 
@@ -107,22 +110,22 @@ class ClaudeService:
                 messages=messages,
                 system=system_message,
                 temperature=self.temperature,
-                max_tokens=500
+                max_tokens=500,
             )
 
             # Extract text from response
             if response.content and len(response.content) > 0:
-                if hasattr(response.content[0], 'text'):
+                if hasattr(response.content[0], "text"):
                     return response.content[0].text
-                elif isinstance(response.content[0], dict) and 'text' in response.content[0]:
-                    return response.content[0]['text']
+                elif isinstance(response.content[0], dict) and "text" in response.content[0]:
+                    return response.content[0]["text"]
 
             return str(response.content[0]) if response.content else ""
         except Exception as e:
             self.logger.error(f"Error generating response with Claude: {e}")
             return "I'm having trouble thinking right now. Could you try rephrasing or asking something else?"
 
-    def _create_system_message(self, context: Dict[str, Any]) -> str:
+    def _create_system_message(self, context: dict[str, Any]) -> str:
         """
         Create a system message with context for Claude.
 
@@ -151,7 +154,7 @@ Keep responses brief and actionable. Focus on helping the user be more productiv
 
         return system_message
 
-    def _format_history(self, history: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+    def _format_history(self, history: list[dict[str, Any]]) -> list[dict[str, str]]:
         """
         Format conversation history for Claude.
 
@@ -166,10 +169,7 @@ Keep responses brief and actionable. Focus on helping the user be more productiv
         for entry in history:
             role = entry.get("role", "user")
             if role in ["user", "assistant"]:
-                formatted_history.append({
-                    "role": role,
-                    "content": entry.get("content", "")
-                })
+                formatted_history.append({"role": role, "content": entry.get("content", "")})
 
         return formatted_history
 
@@ -201,7 +201,7 @@ Return only the reformatted task text without additional explanation."""
 
         return self.generate_text(prompt, max_tokens=100, system=system_prompt)
 
-    def generate_subtasks(self, task_description: str, num_subtasks: int = 5) -> List[str]:
+    def generate_subtasks(self, task_description: str, num_subtasks: int = 5) -> list[str]:
         """
         Generate subtasks for a complex task using Claude.
 

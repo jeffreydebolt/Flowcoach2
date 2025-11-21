@@ -1,13 +1,14 @@
 """Slack Home tab for FlowCoach dashboard."""
 
-from typing import Dict, Any, Optional
+from typing import Any
+
 from slack_bolt import App
 from slack_sdk import WebClient
 
-from ..platform.feature_flags import is_enabled, FlowCoachFlag
-from ..platform.logging import get_logger
-from ..platform.errors import single_post_error_guard
 from ..core.prefs import get_user_prefs_or_defaults
+from ..platform.errors import single_post_error_guard
+from ..platform.feature_flags import FlowCoachFlag, is_enabled
+from ..platform.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -37,19 +38,22 @@ class HomeTab:
             logger.error(f"Failed to publish home tab: {e}", user_id=user_id)
             raise
 
-    def _build_home_view(self, user_id: str, prefs) -> Dict[str, Any]:
+    def _build_home_view(self, user_id: str, prefs) -> dict[str, Any]:
         """Build the home tab view based on user preferences and feature flags."""
         blocks = []
 
         # Header
         blocks.extend(
             [
-                {"type": "header", "text": {"type": "plain_text", "text": "FlowCoach Dashboard 🎯"}},
+                {
+                    "type": "header",
+                    "text": {"type": "plain_text", "text": "FlowCoach Dashboard 🎯"},
+                },
                 {
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": f"Good day! Your productivity system is ready to help you focus.",
+                        "text": "Good day! Your productivity system is ready to help you focus.",
                     },
                 },
                 {"type": "divider"},
@@ -63,7 +67,7 @@ class HomeTab:
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": f"*Your Settings:*\n"
+                        "text": "*Your Settings:*\n"
                         + f"🌍 Timezone: {prefs.timezone}\n"
                         + f"📅 Work days: {prefs.work_days.replace(',', ', ')}\n"
                         + f"🌅 Morning brief: {prefs.morning_window_start} - {prefs.morning_window_end}\n"
@@ -102,7 +106,7 @@ class HomeTab:
                 {
                     "type": "button",
                     "text": {"type": "plain_text", "text": "Update Setup"},
-                    "action_id": "open_interview"
+                    "action_id": "open_interview",
                     # No style specified - uses default button style
                 }
             )
@@ -131,7 +135,7 @@ class HomeTab:
 
         return {"type": "home", "blocks": blocks}
 
-    def handle_home_action(self, ack: Any, body: Dict[str, Any], client: WebClient) -> None:
+    def handle_home_action(self, ack: Any, body: dict[str, Any], client: WebClient) -> None:
         """Handle action button clicks from home tab."""
         # Acknowledge the action immediately
         ack()
@@ -164,7 +168,7 @@ class HomeTab:
                 if trigger_id:
                     open_morning_brief(client, trigger_id, user_id)
                 else:
-                    logger.error(f"No trigger_id in morning brief request", user_id=user_id)
+                    logger.error("No trigger_id in morning brief request", user_id=user_id)
             else:
                 logger.warning(
                     f"Morning brief modal not enabled for user {user_id}", user_id=user_id

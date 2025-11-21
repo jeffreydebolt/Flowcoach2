@@ -1,11 +1,11 @@
 """Error handling with single-post rule for Slack interactions."""
 
-import logging
-from typing import Optional, Dict, Any, Callable
-from functools import wraps
+from collections.abc import Callable
 from contextvars import ContextVar
+from functools import wraps
+from typing import Any
 
-from .logging import get_logger, set_correlation_id, new_correlation_id
+from .logging import get_logger, new_correlation_id, set_correlation_id
 
 logger = get_logger(__name__)
 
@@ -19,9 +19,9 @@ class FlowCoachError(Exception):
     def __init__(
         self,
         message: str,
-        user_id: Optional[str] = None,
-        action: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        user_id: str | None = None,
+        action: str | None = None,
+        details: dict[str, Any] | None = None,
     ):
         """Initialize FlowCoach error."""
         super().__init__(message)
@@ -48,7 +48,7 @@ class FeatureFlagError(FlowCoachError):
     pass
 
 
-def single_post_error_guard(slack_client=None, fallback_channel: Optional[str] = None):
+def single_post_error_guard(slack_client=None, fallback_channel: str | None = None):
     """
     Decorator to ensure only one error message is posted to Slack per interaction.
 
@@ -103,7 +103,7 @@ def single_post_error_guard(slack_client=None, fallback_channel: Optional[str] =
 
 
 def _post_error_to_slack(
-    slack_client, error: Exception, user_id: Optional[str], fallback_channel: Optional[str]
+    slack_client, error: Exception, user_id: str | None, fallback_channel: str | None
 ) -> None:
     """Post error message to Slack (internal function)."""
     # Determine where to post

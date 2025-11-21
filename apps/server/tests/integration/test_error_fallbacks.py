@@ -1,12 +1,14 @@
 """Integration tests for error fallback messaging."""
 
-import unittest
 import json
-from unittest.mock import Mock, patch, MagicMock
+import unittest
+from unittest.mock import MagicMock, Mock, patch
 
 from apps.server.core.errors import (
-    MissingConfigError, InvalidTokenError, TodoistError,
-    get_slack_fallback_message
+    InvalidTokenError,
+    MissingConfigError,
+    TodoistError,
+    get_slack_fallback_message,
 )
 from apps.server.slack.messages import MessageBuilder
 
@@ -18,27 +20,22 @@ class TestSlackErrorFallbacks(unittest.TestCase):
         """Set up test environment."""
         # Mock file system for MessageBuilder
         self.mock_phrases = {
-            "morning_brief": {
-                "intros": ["Good morning!"],
-                "outros": ["Have a great day!"]
-            }
+            "morning_brief": {"intros": ["Good morning!"], "outros": ["Have a great day!"]}
         }
 
         self.mock_template = {
-            "blocks": [
-                {"type": "section", "text": {"type": "mrkdwn", "text": "{intro}"}}
-            ]
+            "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": "{intro}"}}]
         }
 
-    @patch('apps.server.slack.messages.Path')
-    @patch('builtins.open')
+    @patch("apps.server.slack.messages.Path")
+    @patch("builtins.open")
     def test_message_builder_fallback_integration(self, mock_open_func, mock_path):
         """Test that MessageBuilder can handle error scenarios gracefully."""
         # Mock file system
         mock_path.return_value.parent.parent = Mock()
 
         def mock_open_side_effect(*args, **kwargs):
-            if 'phrases.json' in str(args[0]):
+            if "phrases.json" in str(args[0]):
                 return MagicMock(read=Mock(return_value=json.dumps(self.mock_phrases)))
             else:
                 return MagicMock(read=Mock(return_value=json.dumps(self.mock_template)))
@@ -69,7 +66,7 @@ class TestSlackErrorFallbacks(unittest.TestCase):
             MissingConfigError("TODOIST_API_TOKEN"),
             InvalidTokenError("Slack"),
             TodoistError("API Error", status_code=401),
-            Exception("Generic error")
+            Exception("Generic error"),
         ]
 
         for error in test_errors:
@@ -95,9 +92,9 @@ class TestSlackErrorFallbacks(unittest.TestCase):
                 # Should be JSON serializable
                 json.dumps(message)
 
-    @patch('apps.server.jobs.morning_brief.WebClient')
-    @patch('apps.server.jobs.morning_brief.TodoistClient')
-    @patch('apps.server.jobs.morning_brief.get_dal')
+    @patch("apps.server.jobs.morning_brief.WebClient")
+    @patch("apps.server.jobs.morning_brief.TodoistClient")
+    @patch("apps.server.jobs.morning_brief.get_dal")
     def test_morning_brief_error_handling(self, mock_dal, mock_todoist_class, mock_slack_class):
         """Test that morning brief handles errors gracefully with user-friendly messages."""
         from apps.server.jobs.morning_brief import MorningBriefJob
@@ -176,19 +173,23 @@ class TestSlackErrorFallbacks(unittest.TestCase):
         self.assertIn("SUGGESTION:", console_output)
         self.assertIn("subscription", console_output)  # Hint about subscription
 
-    @patch('apps.server.core.errors.logger')
+    @patch("apps.server.core.errors.logger")
     def test_error_logging_integration(self, mock_logger):
         """Test that errors are properly logged for debugging."""
-        from apps.server.core.errors import log_event, format_console_error
+        from apps.server.core.errors import log_event
 
         # Test logging an error event
         error = InvalidTokenError("Todoist")
 
-        log_event("error", "token_validation_failed", {
-            "error_code": error.error_code,
-            "error_message": str(error),
-            "user_hint": error.user_hint
-        })
+        log_event(
+            "error",
+            "token_validation_failed",
+            {
+                "error_code": error.error_code,
+                "error_message": str(error),
+                "user_hint": error.user_hint,
+            },
+        )
 
         # Verify logger was called
         mock_logger.info.assert_called()
@@ -200,5 +201,5 @@ class TestSlackErrorFallbacks(unittest.TestCase):
         self.assertIn("TOKEN_INVALID", logged_call)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

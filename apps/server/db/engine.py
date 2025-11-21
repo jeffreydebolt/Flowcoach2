@@ -1,11 +1,11 @@
 """Database engine abstraction for FlowCoach."""
 
-import os
 import logging
-from typing import Any, Dict, Optional, Union, Protocol
+import os
+import sqlite3
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
-import sqlite3
+from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
 
@@ -13,13 +13,15 @@ logger = logging.getLogger(__name__)
 try:
     import psycopg
     from psycopg import OperationalError as PsycopgOperationalError
+
     PSYCOPG_AVAILABLE = True
 except ImportError:
     PSYCOPG_AVAILABLE = False
     PsycopgOperationalError = Exception
 
 try:
-    from supabase import create_client, Client
+    from supabase import Client, create_client
+
     SUPABASE_AVAILABLE = True
 except ImportError:
     SUPABASE_AVAILABLE = False
@@ -74,14 +76,15 @@ class SQLiteEngine(DatabaseEngine):
     """SQLite database engine."""
 
     def __init__(self, db_path: str = None):
-        self.db_path = db_path or os.getenv('FC_DB_PATH', './flowcoach.db')
+        self.db_path = db_path or os.getenv("FC_DB_PATH", "./flowcoach.db")
         self._init_database()
 
     def _init_database(self):
         """Initialize SQLite database schema."""
         with self.get_connection() as conn:
             # Create tables from Sprint 1
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS weekly_outcomes (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id TEXT NOT NULL,
@@ -91,9 +94,11 @@ class SQLiteEngine(DatabaseEngine):
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(user_id, week_start)
                 )
-            """)
+            """
+            )
 
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS task_scores (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     task_id TEXT NOT NULL UNIQUE,
@@ -103,9 +108,11 @@ class SQLiteEngine(DatabaseEngine):
                     total_score INTEGER NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
-            """)
+            """
+            )
 
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS events (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -114,9 +121,11 @@ class SQLiteEngine(DatabaseEngine):
                     payload TEXT,
                     user_id TEXT
                 )
-            """)
+            """
+            )
 
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS morning_brief_tasks (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id TEXT NOT NULL,
@@ -125,10 +134,12 @@ class SQLiteEngine(DatabaseEngine):
                     surfaced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     status TEXT DEFAULT 'surfaced'
                 )
-            """)
+            """
+            )
 
             # New Sprint 2 table
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS project_momentum (
                     project_id TEXT PRIMARY KEY,
                     last_activity_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -139,7 +150,8 @@ class SQLiteEngine(DatabaseEngine):
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
-            """)
+            """
+            )
 
             conn.commit()
 
@@ -178,9 +190,11 @@ class PostgreSQLEngine(DatabaseEngine):
 
     def __init__(self, db_url: str = None):
         if not PSYCOPG_AVAILABLE:
-            raise ImportError("psycopg package required for PostgreSQL support. Install with: pip install psycopg[binary]")
+            raise ImportError(
+                "psycopg package required for PostgreSQL support. Install with: pip install psycopg[binary]"
+            )
 
-        self.db_url = db_url or os.getenv('FC_DB_URL')
+        self.db_url = db_url or os.getenv("FC_DB_URL")
         if not self.db_url:
             raise ValueError("FC_DB_URL required for PostgreSQL driver")
 
@@ -231,10 +245,12 @@ class SupabaseEngine(DatabaseEngine):
 
     def __init__(self, url: str = None, service_key: str = None):
         if not SUPABASE_AVAILABLE:
-            raise ImportError("supabase package required for Supabase support. Install with: pip install supabase")
+            raise ImportError(
+                "supabase package required for Supabase support. Install with: pip install supabase"
+            )
 
-        self.url = url or os.getenv('SUPABASE_URL')
-        self.service_key = service_key or os.getenv('SUPABASE_SERVICE_KEY')
+        self.url = url or os.getenv("SUPABASE_URL")
+        self.service_key = service_key or os.getenv("SUPABASE_SERVICE_KEY")
 
         if not self.url or not self.service_key:
             raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_KEY required for Supabase driver")
@@ -250,7 +266,7 @@ class SupabaseEngine(DatabaseEngine):
         """Build PostgreSQL URL from Supabase credentials."""
         # Extract database info from Supabase URL
         # This is a simplified approach - in production, you'd get this from Supabase settings
-        host = self.url.replace('https://', '').replace('http://', '')
+        host = self.url.replace("https://", "").replace("http://", "")
         # Note: This is a placeholder - actual implementation would need proper Supabase DB credentials
         return f"postgresql://postgres:{self.service_key}@db.{host}:5432/postgres"
 
@@ -268,7 +284,7 @@ class SupabaseEngine(DatabaseEngine):
         """Check Supabase health."""
         try:
             # Test REST API
-            result = self.client.table('weekly_outcomes').select('id').limit(1).execute()
+            result = self.client.table("weekly_outcomes").select("id").limit(1).execute()
             return True
         except Exception as e:
             logger.error(f"Supabase health check failed: {e}")
@@ -286,20 +302,22 @@ def get_db_engine() -> DatabaseEngine:
     Returns:
         DatabaseEngine instance
     """
-    driver = os.getenv('FC_DB_DRIVER', 'sqlite').lower()
+    driver = os.getenv("FC_DB_DRIVER", "sqlite").lower()
 
-    if driver == 'sqlite':
+    if driver == "sqlite":
         return SQLiteEngine()
-    elif driver == 'postgres':
+    elif driver == "postgres":
         return PostgreSQLEngine()
-    elif driver == 'supabase':
+    elif driver == "supabase":
         return SupabaseEngine()
     else:
-        raise ValueError(f"Unsupported database driver: {driver}. Use 'sqlite', 'postgres', or 'supabase'")
+        raise ValueError(
+            f"Unsupported database driver: {driver}. Use 'sqlite', 'postgres', or 'supabase'"
+        )
 
 
 # Global database engine instance
-_db_engine: Optional[DatabaseEngine] = None
+_db_engine: DatabaseEngine | None = None
 
 
 def get_db() -> DatabaseEngine:

@@ -1,8 +1,8 @@
 """Task sorting and prioritization logic."""
 
-from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -12,9 +12,7 @@ class TaskSorter:
 
     @staticmethod
     def calculate_priority_score(
-        task: Dict[str, Any],
-        weekly_outcomes: List[str],
-        current_time: datetime
+        task: dict[str, Any], weekly_outcomes: list[str], current_time: datetime
     ) -> float:
         """
         Calculate priority score for a task.
@@ -29,7 +27,7 @@ class TaskSorter:
         score = 0.0
 
         # Check weekly outcomes alignment
-        task_content = task.get('content', '').lower()
+        task_content = task.get("content", "").lower()
         for outcome in weekly_outcomes:
             if outcome.lower() in task_content:
                 score += 1000
@@ -37,8 +35,8 @@ class TaskSorter:
                 break
 
         # Check for @rev_driver label
-        labels = task.get('labels', [])
-        if 'rev_driver' in labels:
+        labels = task.get("labels", [])
+        if "rev_driver" in labels:
             score += 500
 
         # Deep work scores (from labels)
@@ -47,17 +45,17 @@ class TaskSorter:
         energy = None
 
         for label in labels:
-            if label.startswith('impact'):
+            if label.startswith("impact"):
                 try:
                     impact = int(label[6:])
                 except ValueError:
                     pass
-            elif label.startswith('urgency'):
+            elif label.startswith("urgency"):
                 try:
                     urgency = int(label[7:])
                 except ValueError:
                     pass
-            elif label.startswith('energy_'):
+            elif label.startswith("energy_"):
                 energy = label[7:]  # 'am' or 'pm'
 
         # Add deep work score
@@ -68,15 +66,15 @@ class TaskSorter:
             current_hour = current_time.hour
             is_morning = 6 <= current_hour < 12
 
-            if (is_morning and energy == 'am') or (not is_morning and energy == 'pm'):
+            if (is_morning and energy == "am") or (not is_morning and energy == "pm"):
                 base_score += 1
 
             score += base_score
 
         # Due date scoring
-        due = task.get('due')
+        due = task.get("due")
         if due:
-            due_date = datetime.fromisoformat(due['date'].replace('Z', '+00:00'))
+            due_date = datetime.fromisoformat(due["date"].replace("Z", "+00:00"))
             today = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
 
             if due_date < today:
@@ -91,10 +89,10 @@ class TaskSorter:
     @classmethod
     def sort_tasks(
         cls,
-        tasks: List[Dict[str, Any]],
-        weekly_outcomes: Optional[List[str]] = None,
-        limit: int = 3
-    ) -> List[Dict[str, Any]]:
+        tasks: list[dict[str, Any]],
+        weekly_outcomes: list[str] | None = None,
+        limit: int = 3,
+    ) -> list[dict[str, Any]]:
         """
         Sort tasks by priority and return top N.
 

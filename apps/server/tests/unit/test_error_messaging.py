@@ -1,11 +1,17 @@
 """Unit tests for improved error messaging."""
 
-import unittest
 import json
+import unittest
+
 from apps.server.core.errors import (
-    FlowCoachError, MissingConfigError, InvalidTokenError,
-    TodoistError, SlackError, format_user_error,
-    format_console_error, get_slack_fallback_message
+    FlowCoachError,
+    InvalidTokenError,
+    MissingConfigError,
+    SlackError,
+    TodoistError,
+    format_console_error,
+    format_user_error,
+    get_slack_fallback_message,
 )
 
 
@@ -15,9 +21,7 @@ class TestFlowCoachErrors(unittest.TestCase):
     def test_base_flowcoach_error(self):
         """Test base FlowCoach error functionality."""
         error = FlowCoachError(
-            "Test error message",
-            user_hint="This is a helpful hint",
-            error_code="TEST_ERROR"
+            "Test error message", user_hint="This is a helpful hint", error_code="TEST_ERROR"
         )
 
         self.assertEqual(str(error), "Test error message")
@@ -33,10 +37,7 @@ class TestFlowCoachErrors(unittest.TestCase):
         self.assertEqual(error.error_code, "CONFIG_MISSING")
 
         # Test with description
-        error_with_desc = MissingConfigError(
-            "SLACK_BOT_TOKEN",
-            "Required for Slack integration"
-        )
+        error_with_desc = MissingConfigError("SLACK_BOT_TOKEN", "Required for Slack integration")
         self.assertIn("Required for Slack integration", error_with_desc.user_hint)
 
     def test_invalid_token_error(self):
@@ -107,10 +108,7 @@ class TestErrorFormatting(unittest.TestCase):
     def test_format_user_error(self):
         """Test user-friendly error formatting."""
         # Error with hint
-        error_with_hint = FlowCoachError(
-            "Something went wrong",
-            user_hint="Try this solution"
-        )
+        error_with_hint = FlowCoachError("Something went wrong", user_hint="Try this solution")
 
         formatted = format_user_error(error_with_hint)
         self.assertIn("❌", formatted)
@@ -128,9 +126,7 @@ class TestErrorFormatting(unittest.TestCase):
     def test_format_console_error(self):
         """Test console error formatting."""
         error = FlowCoachError(
-            "Console error",
-            user_hint="Console hint",
-            error_code="CONSOLE_ERROR"
+            "Console error", user_hint="Console hint", error_code="CONSOLE_ERROR"
         )
 
         formatted = format_console_error(error)
@@ -233,5 +229,5 @@ class TestErrorInheritance(unittest.TestCase):
             self.assertEqual(e.error_code, "TODOIST_RATE_LIMIT")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

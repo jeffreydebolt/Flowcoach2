@@ -1,8 +1,8 @@
 """Task selection logic for FlowCoach morning planning."""
 
-from typing import List, Dict, Any, Optional
-from datetime import datetime, date
 from dataclasses import dataclass
+from datetime import date, datetime
+from typing import Any
 
 from ..integrations.todoist_client import TodoistClient
 from ..platform.logging import get_logger
@@ -18,8 +18,8 @@ class TaskCandidate:
     content: str
     project_name: str
     priority: int
-    due_date: Optional[str]
-    labels: List[str]
+    due_date: str | None
+    labels: list[str]
     is_overdue: bool
     is_priority_1: bool
     is_flow_tomorrow: bool
@@ -33,7 +33,7 @@ class TaskSelector:
         """Initialize task selector with Todoist client."""
         self.todoist = todoist_client
 
-    def get_morning_brief_tasks(self, user_id: str, is_monday: bool = False) -> List[TaskCandidate]:
+    def get_morning_brief_tasks(self, user_id: str, is_monday: bool = False) -> list[TaskCandidate]:
         """Get tasks for morning brief modal.
 
         Args:
@@ -78,8 +78,8 @@ class TaskSelector:
             return []
 
     def _evaluate_task(
-        self, task: Dict[str, Any], today: date, is_monday: bool
-    ) -> Optional[TaskCandidate]:
+        self, task: dict[str, Any], today: date, is_monday: bool
+    ) -> TaskCandidate | None:
         """Evaluate if a task should be included in morning brief.
 
         Args:
@@ -120,7 +120,7 @@ class TaskSelector:
             is_flow_weekly=has_flow_weekly,
         )
 
-    def _is_overdue(self, due_info: Optional[Dict[str, Any]], today: date) -> bool:
+    def _is_overdue(self, due_info: dict[str, Any] | None, today: date) -> bool:
         """Check if task is overdue."""
         if not due_info:
             return False
@@ -136,7 +136,7 @@ class TaskSelector:
         except ValueError:
             return False
 
-    def _get_project_name(self, project_id: Optional[str]) -> str:
+    def _get_project_name(self, project_id: str | None) -> str:
         """Get project name from project ID."""
         if not project_id:
             return "Inbox"
@@ -169,7 +169,7 @@ class PlanningService:
         self.todoist = todoist_client
         self.selector = TaskSelector(todoist_client)
 
-    def get_morning_brief_tasks(self, user_id: str) -> List[TaskCandidate]:
+    def get_morning_brief_tasks(self, user_id: str) -> list[TaskCandidate]:
         """Get tasks for morning brief - convenience method."""
         today = datetime.now()
         is_monday = today.weekday() == 0  # 0 = Monday

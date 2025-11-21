@@ -2,9 +2,8 @@
 
 import json
 import logging
-from typing import Dict, Any, Optional
-from dataclasses import dataclass, asdict
-from datetime import time
+from dataclasses import asdict, dataclass
+from typing import Any
 
 from ..integrations.todoist_client import TodoistClient
 
@@ -45,7 +44,7 @@ class WorkPreferences:
     no_new_task_threshold_minutes: int = 15
 
     # Check-in settings
-    checkin_time_today: Optional[str] = None  # Set daily, format: "14:30"
+    checkin_time_today: str | None = None  # Set daily, format: "14:30"
 
     def __post_init__(self):
         """Set default energy windows if not provided."""
@@ -60,7 +59,7 @@ class WorkPreferences:
 class PreferencesStore:
     """Manages user preferences storage in Todoist."""
 
-    def __init__(self, todoist_client: Optional[TodoistClient] = None):
+    def __init__(self, todoist_client: TodoistClient | None = None):
         """Initialize preferences store."""
         self.todoist = todoist_client or TodoistClient()
 
@@ -87,7 +86,7 @@ class PreferencesStore:
             logger.error(f"Failed to save preferences for user {user_id}: {e}")
             return False
 
-    def load_prefs(self, user_id: str) -> Optional[WorkPreferences]:
+    def load_prefs(self, user_id: str) -> WorkPreferences | None:
         """Load user preferences from Todoist project note."""
         try:
             content = self.todoist.load_project_note()
@@ -132,7 +131,7 @@ class PreferencesStore:
             return WorkPreferences()
         return prefs
 
-    def _prefs_to_dict(self, prefs: WorkPreferences) -> Dict[str, Any]:
+    def _prefs_to_dict(self, prefs: WorkPreferences) -> dict[str, Any]:
         """Convert WorkPreferences to dictionary."""
         result = asdict(prefs)
 
@@ -142,7 +141,7 @@ class PreferencesStore:
 
         return result
 
-    def _dict_to_prefs(self, prefs_dict: Dict[str, Any]) -> WorkPreferences:
+    def _dict_to_prefs(self, prefs_dict: dict[str, Any]) -> WorkPreferences:
         """Convert dictionary to WorkPreferences."""
         # Extract energy windows first
         energy_windows_data = prefs_dict.pop("energy_windows", [])
@@ -162,7 +161,7 @@ def save_user_prefs(user_id: str, prefs: WorkPreferences) -> bool:
     return store.save_prefs(user_id, prefs)
 
 
-def load_user_prefs(user_id: str) -> Optional[WorkPreferences]:
+def load_user_prefs(user_id: str) -> WorkPreferences | None:
     """Load user preferences (convenience function)."""
     store = PreferencesStore()
     return store.load_prefs(user_id)

@@ -1,9 +1,8 @@
 """Task scoring and deep work detection."""
 
-import re
-from typing import Dict, Optional, Tuple, List
-from datetime import datetime
 import logging
+import re
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -12,20 +11,31 @@ class TaskScorer:
     """Handles task scoring for prioritization."""
 
     DURATION_PATTERNS = [
-        (r'(\d+)\s*(?:hours?|hrs?|h)\b', lambda m: int(m.group(1)) * 60),
-        (r'(\d+)\s*(?:minutes?|mins?|m)\b', lambda m: int(m.group(1))),
-        (r'(\d+)min\b', lambda m: int(m.group(1))),
-        (r'~(\d+)m\b', lambda m: int(m.group(1))),
+        (r"(\d+)\s*(?:hours?|hrs?|h)\b", lambda m: int(m.group(1)) * 60),
+        (r"(\d+)\s*(?:minutes?|mins?|m)\b", lambda m: int(m.group(1))),
+        (r"(\d+)min\b", lambda m: int(m.group(1))),
+        (r"~(\d+)m\b", lambda m: int(m.group(1))),
     ]
 
     DEEP_WORK_KEYWORDS = [
-        'plan', 'design', 'architect', 'analyze', 'research',
-        'write', 'create', 'develop', 'implement', 'review',
-        'presentation', 'proposal', 'strategy', 'report'
+        "plan",
+        "design",
+        "architect",
+        "analyze",
+        "research",
+        "write",
+        "create",
+        "develop",
+        "implement",
+        "review",
+        "presentation",
+        "proposal",
+        "strategy",
+        "report",
     ]
 
     @classmethod
-    def extract_duration(cls, text: str) -> Optional[int]:
+    def extract_duration(cls, text: str) -> int | None:
         """Extract duration in minutes from task text."""
         text = text.lower()
 
@@ -42,7 +52,7 @@ class TaskScorer:
         return None
 
     @classmethod
-    def is_deep_work(cls, text: str, duration_minutes: Optional[int] = None) -> bool:
+    def is_deep_work(cls, text: str, duration_minutes: int | None = None) -> bool:
         """Determine if task qualifies as deep work."""
         if duration_minutes and duration_minutes >= 15:
             return True
@@ -59,14 +69,14 @@ class TaskScorer:
         return any(keyword in text_lower for keyword in cls.DEEP_WORK_KEYWORDS)
 
     @classmethod
-    def parse_score_input(cls, input_str: str) -> Optional[Tuple[int, int, str]]:
+    def parse_score_input(cls, input_str: str) -> tuple[int, int, str] | None:
         """
         Parse scoring input like '4/3/am' into (impact, urgency, energy).
 
         Returns:
             Tuple of (impact, urgency, energy) or None if invalid
         """
-        parts = input_str.strip().lower().split('/')
+        parts = input_str.strip().lower().split("/")
         if len(parts) != 3:
             return None
 
@@ -79,7 +89,7 @@ class TaskScorer:
             if not (1 <= impact <= 5 and 1 <= urgency <= 5):
                 return None
 
-            if energy not in ('am', 'pm'):
+            if energy not in ("am", "pm"):
                 return None
 
             return (impact, urgency, energy)
@@ -105,16 +115,12 @@ class TaskScorer:
         current_hour = datetime.now().hour
         is_morning = 6 <= current_hour < 12
 
-        if (is_morning and energy == 'am') or (not is_morning and energy == 'pm'):
+        if (is_morning and energy == "am") or (not is_morning and energy == "pm"):
             total += 1
 
         return total
 
     @classmethod
-    def get_score_labels(cls, impact: int, urgency: int, energy: str) -> List[str]:
+    def get_score_labels(cls, impact: int, urgency: int, energy: str) -> list[str]:
         """Generate Todoist labels for scores."""
-        return [
-            f"impact{impact}",
-            f"urgency{urgency}",
-            f"energy_{energy}"
-        ]
+        return [f"impact{impact}", f"urgency{urgency}", f"energy_{energy}"]

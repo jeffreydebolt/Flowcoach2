@@ -1,16 +1,16 @@
 """Weekly Outcomes job - prompts for weekly goals on Monday mornings."""
 
-import os
-import pytz
-from datetime import datetime, time, timedelta
-from typing import Optional
 import logging
+import os
+from datetime import datetime, time
+
+import pytz
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
-from ..slack.messages import MessageBuilder
+from ..core.errors import log_event, retry
 from ..db.dal import get_dal
-from ..core.errors import retry, log_event
+from ..slack.messages import MessageBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class WeeklyOutcomesJob:
     """Prompts users for weekly outcomes on Monday mornings."""
 
     def __init__(self):
-        self.slack_token = os.getenv('SLACK_BOT_TOKEN')
+        self.slack_token = os.getenv("SLACK_BOT_TOKEN")
         if not self.slack_token:
             raise ValueError("SLACK_BOT_TOKEN not found in environment")
 
@@ -28,13 +28,13 @@ class WeeklyOutcomesJob:
         self.dal = get_dal()
 
         # Default timezone
-        self.default_tz = pytz.timezone(os.getenv('FC_DEFAULT_TIMEZONE', 'America/Denver'))
+        self.default_tz = pytz.timezone(os.getenv("FC_DEFAULT_TIMEZONE", "America/Denver"))
 
     def get_user_timezone(self, user_id: str) -> pytz.timezone:
         """Get user's timezone from Slack profile or use default."""
         try:
             response = self.slack.users_info(user=user_id)
-            tz_string = response['user'].get('tz', 'America/Denver')
+            tz_string = response["user"].get("tz", "America/Denver")
             return pytz.timezone(tz_string)
         except Exception as e:
             logger.warning(f"Failed to get user timezone: {e}")
@@ -61,34 +61,26 @@ class WeeklyOutcomesJob:
             # Build and send prompt
             message = self.message_builder.build_weekly_outcomes_prompt()
 
-            response = self.slack.chat_postMessage(
-                channel=user_id,
-                **message
-            )
+            response = self.slack.chat_postMessage(channel=user_id, **message)
 
-            log_event("info", "weekly_outcomes_prompt_sent", {
-                "user_id": user_id,
-                "message_ts": response['ts']
-            })
+            log_event(
+                "info",
+                "weekly_outcomes_prompt_sent",
+                {"user_id": user_id, "message_ts": response["ts"]},
+            )
 
             return True
 
         except SlackApiError as e:
             logger.error(f"Slack API error: {e}")
-            log_event("error", "weekly_prompt_slack_error", {
-                "user_id": user_id,
-                "error": str(e)
-            })
+            log_event("error", "weekly_prompt_slack_error", {"user_id": user_id, "error": str(e)})
             return False
         except Exception as e:
             logger.error(f"Failed to send weekly prompt: {e}")
-            log_event("error", "weekly_prompt_error", {
-                "user_id": user_id,
-                "error": str(e)
-            })
+            log_event("error", "weekly_prompt_error", {"user_id": user_id, "error": str(e)})
             return False
 
-    def should_run_for_user(self, user_id: str, check_time: Optional[time] = None) -> bool:
+    def should_run_for_user(self, user_id: str, check_time: time | None = None) -> bool:
         """
         Check if job should run for user at current time.
 
@@ -112,8 +104,7 @@ class WeeklyOutcomesJob:
         # Check if it's the right time (within 5 minute window)
         current_time = now.time()
         time_diff = abs(
-            current_time.hour * 60 + current_time.minute -
-            check_time.hour * 60 - check_time.minute
+            current_time.hour * 60 + current_time.minute - check_time.hour * 60 - check_time.minute
         )
 
         return time_diff <= 5
@@ -122,7 +113,7 @@ class WeeklyOutcomesJob:
         """Run weekly outcomes prompt for all active users."""
         try:
             # Get list of users from environment
-            user_ids = os.getenv('FC_ACTIVE_USERS', '').split(',')
+            user_ids = os.getenv("FC_ACTIVE_USERS", "").split(",")
             user_ids = [uid.strip() for uid in user_ids if uid.strip()]
 
             if not user_ids:
@@ -142,8 +133,7 @@ class WeeklyOutcomesJob:
 def main():
     """Entry point for weekly outcomes job."""
     logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
     job = WeeklyOutcomesJob()

@@ -29,7 +29,7 @@ print(f"'{protected}'")
 print("=" * 50)
 
 # Test the typo specifically
-print(f"\nTypo test:")
+print("\nTypo test:")
 print(f"'fore' -> '{gtd_protector.apply_spelling_corrections('fore')}'")
 print("(Note: 'fore' is actually a real word meaning 'front', so it's not corrected)")
 print("If you meant 'for', you need to add that to the corrections list")

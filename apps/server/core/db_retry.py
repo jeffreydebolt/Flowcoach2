@@ -1,10 +1,11 @@
 """Database retry logic for handling SQLite and PostgreSQL operational errors."""
 
 import functools
-import time
 import logging
 import sqlite3
-from typing import TypeVar, Callable, Any, Optional
+import time
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from .errors import log_event
 
@@ -12,6 +13,7 @@ from .errors import log_event
 try:
     import psycopg
     from psycopg import OperationalError as PsycopgOperationalError
+
     PSYCOPG_AVAILABLE = True
 except ImportError:
     PSYCOPG_AVAILABLE = False
@@ -19,13 +21,11 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def db_retry(
-    max_attempts: int = 3,
-    delay: float = 0.1,
-    backoff: float = 2.0
+    max_attempts: int = 3, delay: float = 0.1, backoff: float = 2.0
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """
     Retry decorator for database operations supporting SQLite and PostgreSQL.
@@ -42,10 +42,11 @@ def db_retry(
         - SQLite: database locks, disk I/O errors
         - PostgreSQL: connection errors, temporary failures, deadlocks
     """
+
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
-            last_exception: Optional[Exception] = None
+            last_exception: Exception | None = None
             current_delay = delay
 
             for attempt in range(max_attempts):
@@ -56,12 +57,15 @@ def db_retry(
                     error_msg = str(e).lower()
 
                     # Check if it's a retryable SQLite error
-                    if any(retryable in error_msg for retryable in [
-                        'database is locked',
-                        'database table is locked',
-                        'disk i/o error',
-                        'unable to open database file'
-                    ]):
+                    if any(
+                        retryable in error_msg
+                        for retryable in [
+                            "database is locked",
+                            "database table is locked",
+                            "disk i/o error",
+                            "unable to open database file",
+                        ]
+                    ):
                         if attempt < max_attempts - 1:
                             logger.warning(
                                 f"SQLite operation failed (attempt {attempt + 1}/{max_attempts}): {e}. "
@@ -77,24 +81,29 @@ def db_retry(
                 except PsycopgOperationalError as e:
                     if not PSYCOPG_AVAILABLE:
                         # This shouldn't happen, but handle gracefully
-                        logger.error(f"PostgreSQL error but psycopg not available in {func.__name__}: {e}")
+                        logger.error(
+                            f"PostgreSQL error but psycopg not available in {func.__name__}: {e}"
+                        )
                         raise
 
                     last_exception = e
                     error_msg = str(e).lower()
 
                     # Check if it's a retryable PostgreSQL error
-                    if any(retryable in error_msg for retryable in [
-                        'connection',
-                        'timeout',
-                        'server closed the connection',
-                        'deadlock detected',
-                        'could not serialize access',
-                        'temporary failure',
-                        'connection refused',
-                        'no route to host',
-                        'network is unreachable'
-                    ]):
+                    if any(
+                        retryable in error_msg
+                        for retryable in [
+                            "connection",
+                            "timeout",
+                            "server closed the connection",
+                            "deadlock detected",
+                            "could not serialize access",
+                            "temporary failure",
+                            "connection refused",
+                            "no route to host",
+                            "network is unreachable",
+                        ]
+                    ):
                         if attempt < max_attempts - 1:
                             logger.warning(
                                 f"PostgreSQL operation failed (attempt {attempt + 1}/{max_attempts}): {e}. "
@@ -127,14 +136,15 @@ def db_retry(
                     "error": str(last_exception),
                     "attempts": max_attempts,
                     "error_type": error_type,
-                    "kind": "db_error"
-                }
+                    "kind": "db_error",
+                },
             )
 
             # Re-raise the last database exception
             raise last_exception
 
         return wrapper
+
     return decorator
 
 
@@ -153,7 +163,7 @@ class DatabaseRetryMixin:
         conn.commit()
 
     @db_retry()
-    def fetchone_with_retry(self, conn, query: str, params: tuple = ()) -> Optional[tuple]:
+    def fetchone_with_retry(self, conn, query: str, params: tuple = ()) -> tuple | None:
         """Fetch one row with retry logic."""
         cursor = conn.execute(query, params)
         return cursor.fetchone()

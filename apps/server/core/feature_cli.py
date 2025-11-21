@@ -1,10 +1,9 @@
 """CLI for managing feature flags."""
 
-import sys
-import os
 import argparse
 import logging
-from typing import List, Optional
+import os
+import sys
 
 # Add server to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -85,7 +84,7 @@ def emergency_shutdown():
         sys.exit(1)
 
     confirm = input("Type 'EMERGENCY' to confirm: ").strip()
-    if confirm != 'EMERGENCY':
+    if confirm != "EMERGENCY":
         print("✗ Emergency shutdown cancelled")
         sys.exit(0)
 
@@ -101,12 +100,12 @@ def reset_flags():
 
     # Require confirmation
     confirm = input("Type 'RESET' to confirm: ").strip()
-    if confirm != 'RESET':
+    if confirm != "RESET":
         print("✗ Reset cancelled")
         sys.exit(0)
 
     # Delete config file to reset to defaults
-    config_path = os.getenv('FC_FEATURE_CONFIG_PATH')
+    config_path = os.getenv("FC_FEATURE_CONFIG_PATH")
     if config_path and os.path.exists(config_path):
         os.remove(config_path)
         print(f"✓ Deleted config file: {config_path}")
@@ -114,6 +113,7 @@ def reset_flags():
     # Create new manager to load defaults
     global _feature_manager
     from feature_flags import _feature_manager
+
     _feature_manager = None  # Force reload
 
     manager = get_feature_manager()
@@ -142,56 +142,58 @@ Environment Variables:
   FC_FEATURE_<FLAG_NAME>=true/false      # Set individual flags
 
 Available Flags:
-""" + "\n".join(f"  - {flag.value}" for flag in FeatureFlag)
+"""
+        + "\n".join(f"  - {flag.value}" for flag in FeatureFlag),
     )
 
-    subparsers = parser.add_subparsers(dest='command', help='Commands')
+    subparsers = parser.add_subparsers(dest="command", help="Commands")
 
     # List command
-    subparsers.add_parser('list', help='List all feature flags')
+    subparsers.add_parser("list", help="List all feature flags")
 
     # Enable command
-    enable_parser = subparsers.add_parser('enable', help='Enable a feature flag')
-    enable_parser.add_argument('flag', help='Flag name to enable')
-    enable_parser.add_argument('--persist', action='store_true',
-                              help='Persist changes to config file')
+    enable_parser = subparsers.add_parser("enable", help="Enable a feature flag")
+    enable_parser.add_argument("flag", help="Flag name to enable")
+    enable_parser.add_argument(
+        "--persist", action="store_true", help="Persist changes to config file"
+    )
 
     # Disable command
-    disable_parser = subparsers.add_parser('disable', help='Disable a feature flag')
-    disable_parser.add_argument('flag', help='Flag name to disable')
-    disable_parser.add_argument('--persist', action='store_true',
-                               help='Persist changes to config file')
+    disable_parser = subparsers.add_parser("disable", help="Disable a feature flag")
+    disable_parser.add_argument("flag", help="Flag name to disable")
+    disable_parser.add_argument(
+        "--persist", action="store_true", help="Persist changes to config file"
+    )
 
     # Emergency command
-    subparsers.add_parser('emergency', help='Activate emergency shutdown mode')
+    subparsers.add_parser("emergency", help="Activate emergency shutdown mode")
 
     # Reset command
-    subparsers.add_parser('reset', help='Reset all flags to defaults')
+    subparsers.add_parser("reset", help="Reset all flags to defaults")
 
     # Parse arguments
     args = parser.parse_args()
 
     # Configure logging
     logging.basicConfig(
-        level=logging.WARNING,  # Quiet by default for CLI
-        format='%(levelname)s: %(message)s'
+        level=logging.WARNING, format="%(levelname)s: %(message)s"  # Quiet by default for CLI
     )
 
     # Handle commands
     try:
-        if args.command == 'list' or args.command is None:
+        if args.command == "list" or args.command is None:
             list_flags()
 
-        elif args.command == 'enable':
+        elif args.command == "enable":
             enable_flag(args.flag, persist=args.persist)
 
-        elif args.command == 'disable':
+        elif args.command == "disable":
             disable_flag(args.flag, persist=args.persist)
 
-        elif args.command == 'emergency':
+        elif args.command == "emergency":
             emergency_shutdown()
 
-        elif args.command == 'reset':
+        elif args.command == "reset":
             reset_flags()
 
         else:
@@ -207,5 +209,5 @@ Available Flags:
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

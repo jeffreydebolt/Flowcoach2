@@ -4,9 +4,8 @@ Task agent for FlowCoach.
 This module defines the TaskAgent class that handles task management functionality.
 """
 
-import logging
 import re
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Any
 
 from core.base_agent import BaseAgent
 from core.bmad_client import plan as bmad_plan
@@ -24,7 +23,7 @@ class TaskAgent(BaseAgent):
     - Task review and completion
     """
 
-    def __init__(self, config: Dict[str, Any], services: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any], services: dict[str, Any]):
         """
         Initialize the task agent.
 
@@ -123,8 +122,8 @@ class TaskAgent(BaseAgent):
         }
 
     def process_message(
-        self, message: Dict[str, Any], context: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+        self, message: dict[str, Any], context: dict[str, Any]
+    ) -> dict[str, Any] | None:
         """
         Process a task-related message.
 
@@ -167,7 +166,7 @@ class TaskAgent(BaseAgent):
 
         return None
 
-    def _extract_tasks_from_message(self, text: str) -> List[str]:
+    def _extract_tasks_from_message(self, text: str) -> list[str]:
         """
         Extract tasks from a message, handling both explicit lists and implicit task sequences.
 
@@ -255,7 +254,7 @@ class TaskAgent(BaseAgent):
 
         return cleaned_tasks
 
-    def _create_multiple_tasks(self, tasks: List[str], user_id: str) -> Dict[str, Any]:
+    def _create_multiple_tasks(self, tasks: list[str], user_id: str) -> dict[str, Any]:
         """
         Create multiple tasks in Todoist.
 
@@ -297,7 +296,7 @@ class TaskAgent(BaseAgent):
             "message": "\n".join(message_parts),
         }
 
-    def get_capabilities(self) -> Dict[str, Any]:
+    def get_capabilities(self) -> dict[str, Any]:
         """
         Get the capabilities of this agent.
 
@@ -326,7 +325,7 @@ class TaskAgent(BaseAgent):
             ],
         }
 
-    def can_handle(self, message: Dict[str, Any]) -> bool:
+    def can_handle(self, message: dict[str, Any]) -> bool:
         """
         Determine if this agent can handle the given message.
 
@@ -483,7 +482,7 @@ class TaskAgent(BaseAgent):
 
         return text
 
-    def _create_task(self, task_text: str, user_id: str) -> Dict[str, Any]:
+    def _create_task(self, task_text: str, user_id: str) -> dict[str, Any]:
         """
         Create a task in Todoist.
 
@@ -682,7 +681,7 @@ class TaskAgent(BaseAgent):
             self.logger.error(f"Error formatting task with AI: {e}")
             return task_text  # Fallback to original
 
-    def _extract_time_estimate(self, text: str) -> Tuple[Optional[str], str]:
+    def _extract_time_estimate(self, text: str) -> tuple[str | None, str]:
         """
         Extract time estimate from text and return cleaned text.
 
@@ -752,7 +751,7 @@ class TaskAgent(BaseAgent):
             # Default to 10 minutes for unknown estimates
             return 10
 
-    def _handle_time_estimate(self, text: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    def _handle_time_estimate(self, text: str, context: dict[str, Any]) -> dict[str, Any]:
         """
         Handle time estimate response.
 
@@ -809,7 +808,7 @@ class TaskAgent(BaseAgent):
                 "message": "Sorry, I couldn't apply the time estimate. The task was created, but not tagged.",
             }
 
-    def _handle_multiple_task_estimates(self, text: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    def _handle_multiple_task_estimates(self, text: str, context: dict[str, Any]) -> dict[str, Any]:
         """
         Handle time estimates for multiple tasks.
 
@@ -914,7 +913,7 @@ class TaskAgent(BaseAgent):
             self.logger.error(f"Error applying time estimate: {e}")
             raise
 
-    def _break_down_task(self, text: str, user_id: str) -> Dict[str, Any]:
+    def _break_down_task(self, text: str, user_id: str) -> dict[str, Any]:
         """
         Break down a complex task into smaller tasks.
 
@@ -1001,7 +1000,7 @@ class TaskAgent(BaseAgent):
 
         return text
 
-    def _handle_breakdown_response(self, text: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    def _handle_breakdown_response(self, text: str, context: dict[str, Any]) -> dict[str, Any]:
         """
         Handle user response to task breakdown suggestion.
 
@@ -1121,7 +1120,7 @@ class TaskAgent(BaseAgent):
             ],
         }
 
-    def _generate_subtasks(self, task_description: str) -> List[str]:
+    def _generate_subtasks(self, task_description: str) -> list[str]:
         """
         Generate subtasks for a complex task using Claude or OpenAI.
 
@@ -1172,7 +1171,7 @@ class TaskAgent(BaseAgent):
             self.logger.error(f"Error generating subtasks: {e}")
             return []
 
-    def _review_tasks(self, user_id: str) -> Dict[str, Any]:
+    def _review_tasks(self, user_id: str) -> dict[str, Any]:
         """
         Review current tasks.
 
@@ -1207,7 +1206,7 @@ class TaskAgent(BaseAgent):
                 "message": "Sorry, I couldn't retrieve your tasks. Please try again.",
             }
 
-    def _is_likely_project(self, text: str) -> Tuple[bool, str]:
+    def _is_likely_project(self, text: str) -> tuple[bool, str]:
         """
         Determine if a task description sounds like a project.
 
@@ -1282,7 +1281,7 @@ class TaskAgent(BaseAgent):
             self.logger.error(f"Error determining if task is a project: {e}")
             return False, "Could not analyze task complexity"
 
-    def _create_project(self, name: str, user_id: str) -> Dict[str, Any]:
+    def _create_project(self, name: str, user_id: str) -> dict[str, Any]:
         """
         Create a new project in Todoist.
 
@@ -1363,7 +1362,7 @@ class TaskAgent(BaseAgent):
             self.logger.error(f"Error formatting project name: {e}")
             return name
 
-    def _handle_project_response(self, text: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    def _handle_project_response(self, text: str, context: dict[str, Any]) -> dict[str, Any]:
         """
         Handle response to project detection (whether to break down or create as task).
 

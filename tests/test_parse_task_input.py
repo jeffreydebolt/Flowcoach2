@@ -1,7 +1,6 @@
 """Tests for conversational task input parsing (Phase 2.0)."""
 
-import pytest
-from apps.server.nlp.parser import parse_task_input, ParsedTask
+from apps.server.nlp.parser import parse_task_input
 
 
 class TestParseTaskInput:

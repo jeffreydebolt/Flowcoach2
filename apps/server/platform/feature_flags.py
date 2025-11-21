@@ -7,9 +7,8 @@ Environment Variable Mapping:
 - Memory overrides always take precedence for testing
 """
 
-import os
 import logging
-from typing import Dict, Any, Optional
+import os
 from enum import Enum
 
 logger = logging.getLogger(__name__)
@@ -47,7 +46,7 @@ class FeatureFlagStore:
 
     def __init__(self):
         """Initialize feature flag store."""
-        self._memory_overrides: Dict[str, bool] = {}
+        self._memory_overrides: dict[str, bool] = {}
 
     def is_enabled(self, flag: FlowCoachFlag) -> bool:
         """Check if a feature flag is enabled."""
@@ -96,7 +95,7 @@ class FeatureFlagStore:
         self._memory_overrides.clear()
         logger.debug("Cleared all feature flag overrides")
 
-    def get_all_flags(self) -> Dict[str, bool]:
+    def get_all_flags(self) -> dict[str, bool]:
         """Get status of all feature flags (for debugging)."""
         result = {}
         for flag in FlowCoachFlag:
@@ -128,7 +127,7 @@ def clear_all_overrides() -> None:
     _flag_store.clear_all_overrides()
 
 
-def get_all_flags() -> Dict[str, bool]:
+def get_all_flags() -> dict[str, bool]:
     """Get status of all feature flags (convenience function)."""
     return _flag_store.get_all_flags()
 

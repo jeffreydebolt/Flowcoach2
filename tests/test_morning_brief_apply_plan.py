@@ -1,7 +1,7 @@
 from datetime import date
 from unittest.mock import MagicMock
 
-from apps.server.core.morning_brief import apply_morning_brief_plan, FLOW_TOP_TODAY_LABEL
+from apps.server.core.morning_brief import FLOW_TOP_TODAY_LABEL, apply_morning_brief_plan
 
 
 def test_apply_plan_clears_old_labels_and_updates_only_included_tasks():

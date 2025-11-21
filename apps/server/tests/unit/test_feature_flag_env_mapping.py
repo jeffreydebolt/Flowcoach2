@@ -1,10 +1,9 @@
 """Test automatic environment variable mapping for feature flags."""
 
-import pytest
 import os
 from unittest.mock import patch
 
-from apps.server.platform.feature_flags import FlowCoachFlag, FeatureFlagStore
+from apps.server.platform.feature_flags import FeatureFlagStore, FlowCoachFlag
 
 
 class TestEnvironmentVariableMapping:

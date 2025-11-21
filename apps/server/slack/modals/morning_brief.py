@@ -1,16 +1,17 @@
 """Morning Brief Modal for FlowCoach - Simple V1."""
 
-from typing import Dict, Any
-from datetime import datetime, date
+from datetime import date, datetime
+from typing import Any
 
 from slack_bolt import App
 from slack_sdk import WebClient
 
+from ...core.morning_brief import Task, apply_morning_brief_plan, select_morning_brief_tasks
+from ...core.planning import PlanningService
+from ...platform.errors import single_post_error_guard
+
 # from ...platform.feature_flags import is_enabled, FlowCoachFlag  # Temporarily bypassed
 from ...platform.logging import get_logger
-from ...platform.errors import single_post_error_guard
-from ...core.planning import PlanningService
-from ...core.morning_brief import Task, select_morning_brief_tasks, apply_morning_brief_plan
 
 logger = get_logger(__name__)
 
@@ -271,7 +272,7 @@ class MorningBriefModal:
             logger.error(f"Failed to update to no tasks modal: {e}")
 
     @single_post_error_guard()
-    def handle_submission(self, body: Dict[str, Any], client: WebClient) -> None:
+    def handle_submission(self, body: dict[str, Any], client: WebClient) -> None:
         """Handle morning brief modal submission."""
         user_id = body["user"]["id"]
         values = body["view"]["state"]["values"]
@@ -336,8 +337,9 @@ def get_planning_service():
     """Get or create the planning service."""
     global _planning_service
     if _planning_service is None:
-        from ...integrations.todoist_client import TodoistClient
         import os
+
+        from ...integrations.todoist_client import TodoistClient
 
         todoist_client = TodoistClient(os.environ.get("TODOIST_API_TOKEN"))
         _planning_service = PlanningService(todoist_client)

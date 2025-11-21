@@ -1,17 +1,18 @@
 """Slack interactive action handlers."""
 
+import logging
 import os
 import re
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List
-import logging
+from typing import Any
+
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
-from ..todoist.client import TodoistClient
-from ..db.dal import get_dal
 from ..core.errors import log_event
 from ..core.scoring import TaskScorer
+from ..db.dal import get_dal
+from ..todoist.client import TodoistClient
 
 logger = logging.getLogger(__name__)
 
@@ -20,116 +21,139 @@ class SlackActionHandler:
     """Handle interactive Slack actions."""
 
     def __init__(self):
-        self.slack_token = os.getenv('SLACK_BOT_TOKEN')
+        self.slack_token = os.getenv("SLACK_BOT_TOKEN")
         self.slack = WebClient(token=self.slack_token)
         self.todoist = TodoistClient()
         self.dal = get_dal()
 
-    def handle_block_action(self, body: Dict[str, Any]) -> None:
+    def handle_block_action(self, body: dict[str, Any]) -> None:
         """Handle block action from Slack."""
         try:
-            action = body['actions'][0]
-            action_id = action['action_id']
-            value = action['selected_option']['value'] if 'selected_option' in action else action['value']
-            user_id = body['user']['id']
+            action = body["actions"][0]
+            action_id = action["action_id"]
+            value = (
+                action["selected_option"]["value"]
+                if "selected_option" in action
+                else action["value"]
+            )
+            user_id = body["user"]["id"]
 
             # Route based on action pattern
-            if action_id.startswith('task_') and '_actions' in action_id:
+            if action_id.startswith("task_") and "_actions" in action_id:
                 self._handle_morning_brief_action(body, value)
-            elif action_id.startswith('wrap_actions_'):
+            elif action_id.startswith("wrap_actions_"):
                 self._handle_evening_wrap_action(body, value)
 
             # Acknowledge the action
-            response_url = body.get('response_url')
+            response_url = body.get("response_url")
             if response_url:
                 # Update the message to show action was processed
                 pass
 
         except Exception as e:
             logger.error(f"Error handling block action: {e}")
-            log_event("error", "slack_action_error", {"error": str(e), "action": body.get('actions', [{}])[0].get('action_id', 'unknown')})
+            log_event(
+                "error",
+                "slack_action_error",
+                {
+                    "error": str(e),
+                    "action": body.get("actions", [{}])[0].get("action_id", "unknown"),
+                },
+            )
 
-    def _handle_morning_brief_action(self, body: Dict[str, Any], value: str) -> None:
+    def _handle_morning_brief_action(self, body: dict[str, Any], value: str) -> None:
         """Handle morning brief task actions."""
         # Extract task number and action type
-        parts = value.split('_')
+        parts = value.split("_")
         action_type = parts[0]
         task_num = int(parts[1]) - 1  # Convert to 0-based index
 
         # Get task ID from block
-        blocks = body['message']['blocks']
+        blocks = body["message"]["blocks"]
         task_block = blocks[2 + task_num]  # Skip intro and divider
-        task_id = task_block.get('block_id', '').replace('task_block_', '')
+        task_id = task_block.get("block_id", "").replace("task_block_", "")
 
         if not task_id:
             logger.error("Could not extract task ID from block")
             return
 
         try:
-            if action_type == 'done':
+            if action_type == "done":
                 # Mark task as complete
                 self.todoist.complete_task(task_id)
-                self.dal.morning_brief.update_task_status(task_id, 'completed')
-                self._send_ephemeral(body['channel']['id'], body['user']['id'], "✅ Task marked as done!")
+                self.dal.morning_brief.update_task_status(task_id, "completed")
+                self._send_ephemeral(
+                    body["channel"]["id"], body["user"]["id"], "✅ Task marked as done!"
+                )
 
-            elif action_type == 'today':
+            elif action_type == "today":
                 # Move to today (update due date)
-                today = datetime.now().strftime('%Y-%m-%d')
+                today = datetime.now().strftime("%Y-%m-%d")
                 self.todoist.update_task(task_id, due_date=today)
-                self._send_ephemeral(body['channel']['id'], body['user']['id'], "📅 Task moved to today!")
+                self._send_ephemeral(
+                    body["channel"]["id"], body["user"]["id"], "📅 Task moved to today!"
+                )
 
-            elif action_type == 'snooze':
+            elif action_type == "snooze":
                 # Snooze to tomorrow
-                tomorrow = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+                tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
                 self.todoist.update_task(task_id, due_date=tomorrow)
-                self.dal.morning_brief.update_task_status(task_id, 'snoozed')
-                self._send_ephemeral(body['channel']['id'], body['user']['id'], "😴 Task snoozed to tomorrow!")
+                self.dal.morning_brief.update_task_status(task_id, "snoozed")
+                self._send_ephemeral(
+                    body["channel"]["id"], body["user"]["id"], "😴 Task snoozed to tomorrow!"
+                )
 
         except Exception as e:
             logger.error(f"Error processing morning brief action: {e}")
-            self._send_ephemeral(body['channel']['id'], body['user']['id'], "❌ Sorry, something went wrong.")
+            self._send_ephemeral(
+                body["channel"]["id"], body["user"]["id"], "❌ Sorry, something went wrong."
+            )
 
-    def _handle_evening_wrap_action(self, body: Dict[str, Any], value: str) -> None:
+    def _handle_evening_wrap_action(self, body: dict[str, Any], value: str) -> None:
         """Handle evening wrap task actions."""
-        parts = value.split('_', 1)
+        parts = value.split("_", 1)
         action_type = parts[0]
         task_id = parts[1]
 
         try:
-            if action_type == 'tomorrow':
+            if action_type == "tomorrow":
                 # Move to tomorrow
-                tomorrow = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+                tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
                 self.todoist.update_task(task_id, due_date=tomorrow)
-                self._send_ephemeral(body['channel']['id'], body['user']['id'], "📅 Task moved to tomorrow!")
+                self._send_ephemeral(
+                    body["channel"]["id"], body["user"]["id"], "📅 Task moved to tomorrow!"
+                )
 
-            elif action_type == 'pause':
+            elif action_type == "pause":
                 # Pause project (add label and optionally move to backlog)
                 # For now, just add a paused label
-                self.todoist.update_task(task_id, labels=['paused'])
-                self._send_ephemeral(body['channel']['id'], body['user']['id'], "⏸️ Task paused!")
+                self.todoist.update_task(task_id, labels=["paused"])
+                self._send_ephemeral(body["channel"]["id"], body["user"]["id"], "⏸️ Task paused!")
 
-            elif action_type == 'archive':
+            elif action_type == "archive":
                 # Complete/archive the task
                 self.todoist.complete_task(task_id)
-                self._send_ephemeral(body['channel']['id'], body['user']['id'], "📦 Task archived!")
+                self._send_ephemeral(body["channel"]["id"], body["user"]["id"], "📦 Task archived!")
 
         except Exception as e:
             logger.error(f"Error processing evening wrap action: {e}")
-            self._send_ephemeral(body['channel']['id'], body['user']['id'], "❌ Sorry, something went wrong.")
+            self._send_ephemeral(
+                body["channel"]["id"], body["user"]["id"], "❌ Sorry, something went wrong."
+            )
 
-    def handle_message(self, body: Dict[str, Any]) -> None:
+    def handle_message(self, body: dict[str, Any]) -> None:
         """Handle incoming messages."""
-        event = body.get('event', {})
-        text = event.get('text', '')
-        user_id = event.get('user')
-        channel = event.get('channel')
+        event = body.get("event", {})
+        text = event.get("text", "")
+        user_id = event.get("user")
+        channel = event.get("channel")
 
         # Check if this is a weekly outcomes response
         if self._is_weekly_outcomes_response(channel, user_id):
             self._process_weekly_outcomes(text, user_id)
 
         # Check for /flow commands
-        if text.startswith('/flow'):
+        if text.startswith("/flow"):
             self._handle_flow_command(text, user_id, channel)
 
     def _is_weekly_outcomes_response(self, channel: str, user_id: str) -> bool:
@@ -147,11 +171,11 @@ class SlackActionHandler:
         outcomes = []
 
         # Try numbered list
-        numbered_pattern = r'^\d+[\.\)]\s*(.+)$'
+        numbered_pattern = r"^\d+[\.\)]\s*(.+)$"
         # Try bullet points
-        bullet_pattern = r'^[\*\-\•]\s*(.+)$'
+        bullet_pattern = r"^[\*\-\•]\s*(.+)$"
 
-        lines = text.strip().split('\n')
+        lines = text.strip().split("\n")
         for line in lines:
             line = line.strip()
             match = re.match(numbered_pattern, line) or re.match(bullet_pattern, line)
@@ -170,14 +194,11 @@ class SlackActionHandler:
             # Confirm to user
             self.slack.chat_postMessage(
                 channel=user_id,
-                text=f"Great! I've saved your weekly outcomes:\n" +
-                     "\n".join(f"{i+1}. {outcome}" for i, outcome in enumerate(outcomes[:3]))
+                text="Great! I've saved your weekly outcomes:\n"
+                + "\n".join(f"{i+1}. {outcome}" for i, outcome in enumerate(outcomes[:3])),
             )
 
-            log_event("info", "weekly_outcomes_set", {
-                "user_id": user_id,
-                "outcomes": outcomes[:3]
-            })
+            log_event("info", "weekly_outcomes_set", {"user_id": user_id, "outcomes": outcomes[:3]})
 
     def _handle_flow_command(self, text: str, user_id: str, channel: str) -> None:
         """Handle /flow commands."""
@@ -187,20 +208,18 @@ class SlackActionHandler:
 
         command = parts[1].lower()
 
-        if command == 'week':
+        if command == "week":
             # Show current weekly outcomes
             outcomes = self.dal.weekly_outcomes.get_current_outcomes(user_id)
 
             if outcomes:
-                message = "*Your weekly outcomes:*\n" + \
-                         "\n".join(f"{i+1}. {outcome}" for i, outcome in enumerate(outcomes))
+                message = "*Your weekly outcomes:*\n" + "\n".join(
+                    f"{i+1}. {outcome}" for i, outcome in enumerate(outcomes)
+                )
 
                 # Add option to update
                 blocks = [
-                    {
-                        "type": "section",
-                        "text": {"type": "mrkdwn", "text": message}
-                    },
+                    {"type": "section", "text": {"type": "mrkdwn", "text": message}},
                     {
                         "type": "actions",
                         "elements": [
@@ -208,17 +227,17 @@ class SlackActionHandler:
                                 "type": "button",
                                 "text": {"type": "plain_text", "text": "Update Outcomes"},
                                 "value": "update_outcomes",
-                                "action_id": "update_weekly_outcomes"
+                                "action_id": "update_weekly_outcomes",
                             }
-                        ]
-                    }
+                        ],
+                    },
                 ]
 
                 self.slack.chat_postMessage(channel=channel, blocks=blocks)
             else:
                 self.slack.chat_postMessage(
                     channel=channel,
-                    text="No weekly outcomes set yet. Reply with 3 outcomes to set them!"
+                    text="No weekly outcomes set yet. Reply with 3 outcomes to set them!",
                 )
 
     def handle_score_prompt_response(self, text: str, task_id: str, user_id: str) -> None:
@@ -228,7 +247,7 @@ class SlackActionHandler:
         if not scores:
             self.slack.chat_postMessage(
                 channel=user_id,
-                text="Invalid format. Please use: impact/urgency/energy (e.g., 4/3/am)"
+                text="Invalid format. Please use: impact/urgency/energy (e.g., 4/3/am)",
             )
             return
 
@@ -244,7 +263,7 @@ class SlackActionHandler:
 
         self.slack.chat_postMessage(
             channel=user_id,
-            text=f"✅ Scored! Total: {total_score} (Impact: {impact}, Urgency: {urgency}, Energy: {energy})"
+            text=f"✅ Scored! Total: {total_score} (Impact: {impact}, Urgency: {urgency}, Energy: {energy})",
         )
 
     def _send_ephemeral(self, channel: str, user: str, text: str) -> None:

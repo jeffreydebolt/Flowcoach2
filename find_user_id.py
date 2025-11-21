@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+
 from apps.server.core.env_bootstrap import bootstrap_env
 
 bootstrap_env()

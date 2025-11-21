@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Send a test task directly to show GTD formatting works."""
 
-import os
 import sys
 
 sys.path.append(".")
@@ -10,9 +9,9 @@ from apps.server.core.env_bootstrap import bootstrap_env
 
 bootstrap_env()
 
-from services.todoist_service import TodoistService
-from core.task_agent import TaskAgent
 from config import get_config
+from core.task_agent import TaskAgent
+from services.todoist_service import TodoistService
 
 # Initialize
 config = get_config()
@@ -29,7 +28,7 @@ print(f"Formatted: '{formatted}'")
 
 # Actually create it to show it works
 result = task_agent._create_task(test_task, "test_user")
-print(f"\nTask created in Todoist:")
+print("\nTask created in Todoist:")
 print(f"- Content: {result.get('task_content')}")
 print(f"- Response: {result.get('response_type')}")
 print(f"- Message: {result.get('message')}")

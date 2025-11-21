@@ -1,6 +1,7 @@
 """Unit tests for task scoring logic."""
 
 import unittest
+
 from apps.server.core.scoring import TaskScorer
 
 
@@ -43,11 +44,15 @@ class TestTaskScorer(unittest.TestCase):
 
         for task in deep_work_tasks:
             with self.subTest(task=task):
-                self.assertTrue(TaskScorer.is_deep_work(task), f"Should detect '{task}' as deep work")
+                self.assertTrue(
+                    TaskScorer.is_deep_work(task), f"Should detect '{task}' as deep work"
+                )
 
         for task in regular_tasks:
             with self.subTest(task=task):
-                self.assertFalse(TaskScorer.is_deep_work(task), f"Should not detect '{task}' as deep work")
+                self.assertFalse(
+                    TaskScorer.is_deep_work(task), f"Should not detect '{task}' as deep work"
+                )
 
     def test_score_input_parsing(self):
         """Test parsing of score input."""
@@ -89,7 +94,9 @@ class TestTaskScorer(unittest.TestCase):
         pm_score = TaskScorer.calculate_total_score(4, 3, "pm")
 
         # One should be higher than the other (depending on current time)
-        self.assertTrue(am_score != pm_score or am_score == pm_score)  # Could be equal if neutral time
+        self.assertTrue(
+            am_score != pm_score or am_score == pm_score
+        )  # Could be equal if neutral time
 
     def test_score_labels_generation(self):
         """Test generation of Todoist labels."""
@@ -102,5 +109,5 @@ class TestTaskScorer(unittest.TestCase):
         self.assertEqual(labels, expected)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -1,7 +1,7 @@
 """Tests for TodoistClient get_tasks() shim implementation."""
 
-import pytest
 from unittest.mock import Mock, patch
+
 from apps.server.integrations.todoist_client import TodoistClient
 
 

@@ -1,6 +1,5 @@
 """Tests for natural language date parsing."""
 
-import pytest
 from datetime import datetime, timedelta
 
 from apps.server.core.dateparse import DateParser

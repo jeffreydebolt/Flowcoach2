@@ -1,8 +1,8 @@
 """Tests for retry and deduplication handling (Phase 2.0)."""
 
-import pytest
 from unittest.mock import Mock
-from apps.server.slack.middleware import drop_slack_retries_middleware, DeduplicationMiddleware
+
+from apps.server.slack.middleware import DeduplicationMiddleware, drop_slack_retries_middleware
 
 
 class TestRetryDedupe:

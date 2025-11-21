@@ -1,7 +1,5 @@
 from dataclasses import dataclass
 from datetime import date
-from typing import List, Dict, Optional
-
 
 FLOW_TOP_TODAY_LABEL = "flow_top_today"  # or "@flow_top_today" depending on how you store it
 
@@ -11,17 +9,17 @@ class Task:
     id: str
     content: str
     priority: int  # 1 (P1), 2 (P2), 3 (P3), etc.
-    due_date: Optional[date]
-    labels: List[str]
+    due_date: date | None
+    labels: list[str]
     completed: bool
-    project: Optional[str] = None  # optional, for display
+    project: str | None = None  # optional, for display
 
 
 def select_morning_brief_tasks(
-    tasks: List[Task],
+    tasks: list[Task],
     today: date,
     max_undated_p1: int = 15,  # Increased from 5 to show more tasks
-) -> Dict[str, List[Task]]:
+) -> dict[str, list[Task]]:
     """
     Split all tasks into four lists for the Morning Brief modal:
 
@@ -81,7 +79,7 @@ def select_morning_brief_tasks(
     }
 
 
-def group_tasks_for_picker(tasks: List[Task]) -> Dict[str, List[Task]]:
+def group_tasks_for_picker(tasks: list[Task]) -> dict[str, list[Task]]:
     """
     Group tasks for the lightweight picker by priority bucket.
 
@@ -123,7 +121,7 @@ def group_tasks_for_picker(tasks: List[Task]) -> Dict[str, List[Task]]:
 
 def apply_morning_brief_plan(
     user_id: str,
-    plan: List[Dict],
+    plan: list[dict],
     todoist_client,
     today: date,
 ):

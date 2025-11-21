@@ -6,8 +6,8 @@ These tests ensure that GTD formatting NEVER breaks.
 If any of these tests fail, DO NOT DEPLOY.
 """
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

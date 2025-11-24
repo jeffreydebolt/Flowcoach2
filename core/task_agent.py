@@ -51,23 +51,17 @@ class TaskAgent(BaseAgent):
                 "No AI service available - GTD formatting and task breakdown will be limited"
             )
 
-        # Task-related keywords for intent detection
+        # Task-related keywords for intent detection - MUST be very specific
+        # Only trigger on explicit task creation requests, not general words
         self.task_keywords = [
-            "add",
-            "create",
-            "task",
-            "todo",
-            "to-do",
-            "to do",
-            "remind",
-            "remember",
-            "capture",
-            "track",
-            "schedule",
-            "need to",
-            "should",
-            "must",
-            "have to",
+            "add task",
+            "create task", 
+            "new task",
+            "add todo",
+            "create todo",
+            "add to-do",
+            "remind me to",
+            "make a task",
         ]
 
         # List indicator patterns
@@ -412,54 +406,8 @@ class TaskAgent(BaseAgent):
         if any(re.match(pattern, text_lower) for pattern in task_phrases):
             return True
 
-        # Check for task-like structure (verb + object) or time indicators
-        words = text_lower.split()
-        if len(words) >= 2:
-            # Check if first word is a common action verb
-            first_word = words[0]
-            action_verbs = [
-                "send",
-                "email",
-                "call",
-                "write",
-                "read",
-                "buy",
-                "make",
-                "plan",
-                "do",
-                "get",
-                "find",
-                "create",
-                "build",
-                "review",
-                "update",
-                "prepare",
-                "gather",
-                "collect",
-                "finish",
-                "complete",
-                "schedule",
-                "book",
-                "arrange",
-                "setup",
-                "configure",
-                "install",
-                "fix",
-                "repair",
-                "clean",
-                "organize",
-                "sort",
-                "file",
-                "print",
-                "scan",
-            ]
-            if first_word in action_verbs:
-                return True
-
-            # Check if it contains time indicators (like "- 5 mins")
-            if re.search(r"[-–]\s*\d+\s*min", text_lower):
-                return True
-
+        # DISABLED - This was catching every message!
+        # Only explicit task creation requests should trigger
         return False
 
     def _extract_task_content(self, text: str) -> str:
